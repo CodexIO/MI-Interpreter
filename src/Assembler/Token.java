@@ -5,10 +5,10 @@ public class Token {
     public int row;
     public int col;
     public Type type;
+    public String lexeme;
 
-    public static enum Type {
+    public enum Type {
         COMMA,
-        SEMICOLON,
         MINUS,
         PLUS,
         SLASH,
@@ -16,12 +16,14 @@ public class Token {
         COLON,
         KEYWORD,
         CONSTANT,
-        Identifier
+        IDENTIFIER,
+        UNKNOWN
     }
 
-    public Token(int r, int c, Type t) {
+    public Token(int r, int c, String l, Type t) {
         row = r;
         col = c;
         type = t;
+        lexeme = l;
     }
 }
