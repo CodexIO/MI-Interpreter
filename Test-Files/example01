@@ -1,0 +1,15 @@
+	SEG
+	JUMP s
+
+a:  DD W 1
+b:  DD W 2
+c:  DD W 3
+
+s:  MOVEA a, R5
+if: CMP W I 3, R7
+    JEQ end
+	ADD W 0+!R5/R7/, R2
+    ADD W I 1, R7
+	JUMP if
+
+end:	HALT
