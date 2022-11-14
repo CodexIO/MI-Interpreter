@@ -7,7 +7,7 @@ public class Lexer {
     private int row = 1;
     private int col = 1;
 
-    private String source;    // Input String to Lex
+    private final String source;    // Input String to Lex
     private int index = 0;       // Indexes the current position in the String
     private int start = 0;       // Marks the start position of the current Token
 
