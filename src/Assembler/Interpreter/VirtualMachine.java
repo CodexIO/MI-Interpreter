@@ -71,14 +71,52 @@ public class VirtualMachine {
         return result;
     }
 
-    private int getNextOperand() {
+    private int getNextOperand(int OperandSize) {
         byte b = getNextByte();
+
+        int reg = (b & 0x0F);
         int addressType = (b & 0xFF) >> 4;
-        int result = -1;
+        if (addressType < 4) addressType = 0; // We do this so we only have to use one case statement for every direct Operand Case
+
+        int result = 0;
 
         switch (addressType) {
+            // Direct Operand between 0 and 63
+            case 0: {
+                result = (b & 0x3F);
+            } break;
+            // Stack Addressing by -!Rx
+            case 7: {
+                registers[reg] -= OperandSize;
+                result = memory[registers[reg]];
+            } break;
+            case 8: {
+                // Direct Operand bigger than 63
+                if (reg == 15) {
+                    for (int i = 0; i < OperandSize; i++) {
+                        byte op = getNextByte();
+                        result = (result << 4) + (op & 0xFF);
+                    }
+                }
+                // Stack Addressing by !Rx+
+                else {
+                    result = memory[registers[reg]];
+                    registers[reg] += OperandSize;
+                }
+            }
+            // Absolute Addressing
+            case 9: {
+                assert((b & 0x0F) == 15); //Not sure why the rest of the byte has to be 15
+
+                int address = 0;
+                for (int i = 0; i < OperandSize; i++) {
+                    byte op = getNextByte();
+                    address = (address << 4) + (op & 0xFF);
+                }
+                result = memory[address];
+            } break;
+            // Register Addressing
             case 5: {
-                int reg = (b & 0x0F);
                 result = registers[reg];
             } break;
             //TODO: Other cases
@@ -140,8 +178,8 @@ public class VirtualMachine {
     }
 
     public void add_b2() {
-        int a1 = getNextOperand();
-        int a2 = getNextOperand();
+        int a1 = getNextOperand(1);
+        int a2 = getNextOperand(1);
         int result = a1 + a2;
 
         decPC();
@@ -151,8 +189,8 @@ public class VirtualMachine {
     public void add_b3() {
         //TODO: Zum testen gehen wir jetzt kurzzeitig von Registern aus
 
-        int a1 = getNextOperand();
-        int a2 = getNextOperand();
+        int a1 = getNextOperand(1);
+        int a2 = getNextOperand(1);
         int result = a1 + a2;
 
         saveResult(result);
