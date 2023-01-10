@@ -27,6 +27,9 @@ public class OpCode {
         //TODO: CONV hat Byte/Wort als datentyp, müssen wir dies unterstützen?
     }
 
-    public static OpCode HALT = new OpCode("HALT", 0x00, 0, NONE, 1);
-    public static OpCode REI = new  OpCode("REI", 0x01, 0, NONE, 1);
+    public static final OpCode HALT = new OpCode("HALT", 0x00, 0, NONE, 1);
+    public static final OpCode REI = new  OpCode("REI", 0x01, 0, NONE, 1);
+    public static final OpCode ADD_B3 = new OpCode("ADD_B", 0xC4, 2, BYTE, 3);
+
+    public static final int ADD_B3_Code = 0xC4;
 }
