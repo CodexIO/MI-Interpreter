@@ -14,25 +14,25 @@ public class VirtualMachine {
     public static final int WORD_SIZE = 4;
 
     public class AddressType {
-        public static final int absolutAddress = 9;
-        public static final int smallDirectOperand = 0;
-        public static final int bigDirectOperand_Or_StackAddressingWithPlus = 8;
-        public static final int registerAddressing = 5;
-        public static final int relativeAddressingWithZero = 6;
-        public static final int relativeAddressingWithByte = 10;
-        public static final int relativeAddressingWithHalfword = 12;
-        public static final int relativeAddressingWithWord = 14;
-        public static final int indicatedRelativeAddressing = 4;
-        public static final int indirectAddressingWithByte = 11;
-        public static final int indirectAddressingWithHalfword = 13;
-        public static final int indirectAddressingWithWord = 15;
-        public static final int stackAddressingWithMinus = 7;
+        public static final int ABSOLUT_ADDRESS = 9;
+        public static final int SMALL_DIRECT_OPERAND = 0;
+        public static final int BIG_DIRECT_OPERAND_OR_STACK_ADDRESSING_WITH_PLUS = 8;
+        public static final int REGISTER_ADDRESSING = 5;
+        public static final int RELATIVE_ADDRESSING_WITH_ZERO = 6;
+        public static final int RELATIVE_ADDRESSING_WITH_BYTE = 10;
+        public static final int RELATIVE_ADDRESSING_WITH_HALFWORD = 12;
+        public static final int RELATIVE_ADDRESSING_WITH_WORD = 14;
+        public static final int INDICATED_RELATIVE_ADDRESSING = 4;
+        public static final int INDIRECT_ADDRESSING_WITH_BYTE = 11;
+        public static final int INDIRECT_ADDRESSING_WITH_HALFWORD = 13;
+        public static final int INDIRECT_ADDRESSING_WITH_WORD = 15;
+        public static final int STACK_ADDRESSING_WITH_MINUS = 7;
     }
 
     // Condition Codes / Flags
     private boolean C, Z, N, V;
 
-    private final byte[] memory = new byte[MEMORY_LENGTH];
+    public final byte[] memory = new byte[MEMORY_LENGTH];
     private final ArrayList<Integer> changedMemory = new ArrayList<>();
 
     public final int[] registers = new int[NUMBER_OF_REGISTERS]; //TODO: Make registers private again with proper testing
@@ -40,7 +40,7 @@ public class VirtualMachine {
 
     private boolean programHaltet;
 
-    public static final byte[] TEST1 = {(byte)0xC4, 0x50, 0x51, 0x52, (byte)0xBF, 0x52, 0x50};
+    public static final byte[] TEST1 = {(byte)0xC4, 0x50, 0x51, 0x52, (byte)0xBF, 0x52, 0x50, (byte)0xC9, 0x51, 0x52, (byte)0x9E, 0x0F, (byte)0x9F, 0x00, 0x00, 0x00, 0x40,};
 
     public VirtualMachine(int begin, byte[] content) {
         //TODO: Handle bad input
@@ -92,6 +92,10 @@ public class VirtualMachine {
         return result & 0xFF;
     }
 
+    private void setByte(int address, int number) {
+        memory[address] = (byte) (number & 0x000000FF);
+    }
+
     private int getNextHalfword() {
         int a = getNextByte();
         a = (a << 4) + getNextByte();
@@ -102,6 +106,11 @@ public class VirtualMachine {
         int a = getByte(address);
         a = (a << 4) + getByte(address);
         return a;
+    }
+
+    private void setHalfword(int address, int number) {
+        setByte(address++, number);
+        setByte(address++, number >> 4);
     }
 
     private int getNextWord() {
@@ -116,15 +125,30 @@ public class VirtualMachine {
         return a;
     }
 
+    private void setWord(int address, int number) {
+        setHalfword(address, number);
+        setHalfword(address, number >> 8);
+    }
+
     // Only use this for 1, 2 or 4 Bytes
     private int getMemory(int address, int size) {
         assert(size == 1 || size == 2 || size == 4);
         return switch (size) {
-            case 1 -> getNextByte();
-            case 2 -> getNextHalfword();
-            case 4 -> getNextWord();
+            case 1 -> getByte(address);
+            case 2 -> getHalfword(address);
+            case 4 -> getWord(address);
             default -> -1;
         };
+    }
+
+    // Only use this for 1, 2 or 4 Bytes
+    private void setMemory(int address, int size, int result) {
+        assert(size == 1 || size == 2 || size == 4);
+        switch (size) {
+            case 1 -> setByte(address, result);
+            case 2 -> setHalfword(address, result);
+            case 4 -> setWord(address, result);
+        }
     }
 
     private int getAddress(int address) {
@@ -140,26 +164,25 @@ public class VirtualMachine {
 
         int result = 0;
 
-        //TODO: Create enums for the switch case
         switch (addressType) {
             // Direct Operand between 0 and 63
-            case AddressType.smallDirectOperand: {
+            case AddressType.SMALL_DIRECT_OPERAND: {
                 result = (b & 0x3F);
             } break;
             // Register Addressing
-            case AddressType.registerAddressing: {
+            case AddressType.REGISTER_ADDRESSING: {
                 result = registers[reg];
             } break;
             // Relative Addressing a + !Rx, where a = 0
-            case AddressType.relativeAddressingWithZero: {
+            case AddressType.RELATIVE_ADDRESSING_WITH_ZERO: {
                 result = memory[registers[reg]];
             } break;
             // Stack Addressing by -!Rx
-            case AddressType.stackAddressingWithMinus: {
+            case AddressType.STACK_ADDRESSING_WITH_MINUS: {
                 registers[reg] -= operandSize;
                 result = memory[registers[reg]];
             } break;
-            case AddressType.bigDirectOperand_Or_StackAddressingWithPlus: {
+            case AddressType.BIG_DIRECT_OPERAND_OR_STACK_ADDRESSING_WITH_PLUS: {
                 // Direct Operand bigger than 63
                 if (reg == 15) {
                     for (int i = 0; i < operandSize; i++) {
@@ -174,49 +197,45 @@ public class VirtualMachine {
                 } break;
             }
             // Absolute Addressing
-            case AddressType.absolutAddress: {
+            case AddressType.ABSOLUT_ADDRESS: {
                 assert((b & 0x0F) == 15); //Not sure why the rest of the byte has to be 15
 
-                int address = 0;
-                for (int i = 0; i < operandSize; i++) {
-                    int op = getNextByte();
-                    address = (address << 4) + op;
-                }
-                result = memory[address];
+                int address = getNextWord();
+                result = getMemory(address, operandSize);
             } break;
             // Relative Addressing a + !Rx, where a fits into one byte
-            case AddressType.relativeAddressingWithByte: {
+            case AddressType.RELATIVE_ADDRESSING_WITH_BYTE: {
                 int a = getNextByte();
                 int address = registers[reg] + a;
-                result = memory[address];
+                result = memory[address]; //TODO: All these result assignments currently ignore the operand_size
             } break;
             // Relative Addressing a + !Rx, where a fits into two byte
-            case AddressType.relativeAddressingWithHalfword: {
+            case AddressType.RELATIVE_ADDRESSING_WITH_HALFWORD: {
                 int a = getNextHalfword();
                 int address = registers[reg] + a;
                 result = memory[address];
             } break;
-            case AddressType.relativeAddressingWithWord: {
+            case AddressType.RELATIVE_ADDRESSING_WITH_WORD: {
                 int a = getNextWord();
                 int address = registers[reg] + a;
                 result = memory[address];
             } break;
-            case AddressType.indicatedRelativeAddressing: {
+            case AddressType.INDICATED_RELATIVE_ADDRESSING: {
                 //TODO: Implement me
             } break;
-            case AddressType.indirectAddressingWithByte: {
+            case AddressType.INDIRECT_ADDRESSING_WITH_BYTE: {
                 int a = getNextByte();
                 int address1 = registers[reg] + a;
                 int address2 = getAddress(address1);
                 result = getMemory(address2, operandSize);
             } break;
-            case AddressType.indirectAddressingWithHalfword: {
+            case AddressType.INDIRECT_ADDRESSING_WITH_HALFWORD: {
                 int a = getNextHalfword();
                 int address1 = registers[reg] + a;
                 int address2 = getAddress(address1);
                 result = getMemory(address2, operandSize);
             } break;
-            case AddressType.indirectAddressingWithWord: {
+            case AddressType.INDIRECT_ADDRESSING_WITH_WORD: {
                 int a = getNextWord();
                 int address1 = registers[reg] + a;
                 int address2 = getAddress(address1);
@@ -228,15 +247,21 @@ public class VirtualMachine {
         return result;
     }
 
-    private void saveResult(int result) {
+    private void saveResult(int result, int operandSize) {
         //TODO: For now only handling Registers
         int b = getNextByte();
         int addressType = b >> 4;
 
         switch (addressType) {
-            case 5: {
+            case AddressType.REGISTER_ADDRESSING: {
                 int reg = (b & 0x0F);
                 registers[reg] = result;
+            } break;
+            case AddressType.ABSOLUT_ADDRESS: {
+                assert((b & 0x0F) == 15); //Not sure why the rest of the byte has to be 15
+
+                int address = getNextWord();
+                setMemory(address, operandSize, result);
             } break;
             //TODO: Other cases
         }
@@ -250,18 +275,20 @@ public class VirtualMachine {
         //opcode & 0xFF makes the Byte unsigned
         switch(OpCode.find(opcode)) {
             case HALT: halt(); break;
-            //case 0x92: cmp_b(); break;
-            //case 0x93: cmp_h(); break;
+            case MOVE_B: move_b(1); break;
+
 
             case ADD_B2: add_b2(); break;
             case ADD_B3: add_b3(); break;
+
+            case SUB_B2: sub_b2();
         }
     }
 
     public void run() {
         //TODO: Do we assume that a halt is at the end of the Program
         // and simply run until we find it or do we have another way
-        // to know that we are finished?
+        // to know that we are finished? @Alex: There should always be a zero byte at the end.
         while (!programHaltet) {
             executeOneInstruction();
         }
@@ -270,6 +297,11 @@ public class VirtualMachine {
     public void halt() {
 
         programHaltet = true;
+    }
+
+    public void move_b(int size) {
+        int a1 = getNextOperand(size);
+        saveResult(a1, size);
     }
 
     public void cmp_b() {
@@ -286,7 +318,7 @@ public class VirtualMachine {
         int result = a1 + a2;
 
         decPC();
-        saveResult(result);
+        saveResult(result, 1);
     }
 
     public void add_b3() {
@@ -296,7 +328,16 @@ public class VirtualMachine {
         int a2 = getNextOperand(1);
         int result = a1 + a2;
 
-        saveResult(result);
+        saveResult(result, 1);
+    }
+
+    public void sub_b2() {
+        int a1 = getNextOperand(1);
+        int a2 = getNextOperand(1);
+        int result = a2 - a1;
+
+        decPC();
+        saveResult(result, 1);
     }
 
 }
