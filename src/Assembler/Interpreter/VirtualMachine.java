@@ -11,6 +11,8 @@ public class VirtualMachine {
     public static final int SP_REGISTER = 14; // Stackpointer
     public static final int PC_REGISTER = 15; // Programcounter
     public static final int NUMBER_OF_REGISTERS = 16;
+    public static final int BYTE_SIZE = 1;
+    public static final int HALFWORD_SIZE = 2;
     public static final int WORD_SIZE = 4;
 
     public class AddressType {
@@ -40,8 +42,6 @@ public class VirtualMachine {
 
     private boolean programHaltet;
 
-    public static final byte[] TEST1 = {(byte)0xC4, 0x50, 0x51, 0x52, (byte)0xBF, 0x52, 0x50, (byte)0xC9, 0x51, 0x52, (byte)0x9E, 0x0F, (byte)0x9F, 0x00, 0x00, 0x00, 0x40,};
-
     public VirtualMachine(int begin, byte[] content) {
         //TODO: Handle bad input
 
@@ -56,34 +56,38 @@ public class VirtualMachine {
         this(0, content);
     }
 
-    //region Getter and Setter
-    private int getPC() {
-        return registers[PC_REGISTER];
+    public void checkSize(int size) {
+        assert(size == BYTE_SIZE || size == HALFWORD_SIZE || size == WORD_SIZE);
     }
 
-    private void setPC(int value) {
-        registers[PC_REGISTER] = value;
+    //region Getter and Setter
+    private int getPC(int size) {
+        return getRegister(PC_REGISTER, size);
+    }
+
+    private void setPC(int value, int size) {
+        setRegister(PC_REGISTER, size, value);
     }
 
     private void decPC() {
         registers[PC_REGISTER] -= 1;
     }
 
-    private void addOneToPC() {
+    private void incPC() {
         registers[PC_REGISTER] += 1;
     }
 
-    private int getSP() {
-        return registers[SP_REGISTER];
+    private int getSP(int size) {
+        return getRegister(SP_REGISTER, size);
     }
 
-    private void setSP(int value) {
-        registers[SP_REGISTER] = value;
+    private void setSP(int value, int size) {
+        setRegister(SP_REGISTER, size, value);
     }
 
     private int getNextByte() {
-        int result = getByte(getPC());
-        addOneToPC();
+        int result = getByte(getPC(WORD_SIZE));
+        incPC();
         return result;
     }
 
@@ -94,6 +98,31 @@ public class VirtualMachine {
 
     private void setByte(int address, int number) {
         memory[address] = (byte) (number & 0x000000FF);
+    }
+
+    private int getMask(int size) {
+        checkSize(size);
+        return switch(size) {
+            case 1 -> 0xFF;
+            case 2 -> 0xFFFF;
+            case 4 -> 0xFFFF_FFFF;
+            default -> 0;
+        };
+    }
+
+    private int getRegister(int reg, int size) {
+        int mask = getMask(size);
+        return registers[reg] & mask;
+    }
+
+    private int getRegister(int reg) {
+        return getRegister(reg, WORD_SIZE);
+    }
+
+    private void setRegister(int reg, int size, int value) {
+        checkSize(size);
+        int mask = getMask(size);
+        registers[reg] = value & mask;
     }
 
     private int getNextHalfword() {
@@ -110,7 +139,7 @@ public class VirtualMachine {
 
     private void setHalfword(int address, int number) {
         setByte(address++, number);
-        setByte(address++, number >> 4);
+        setByte(address, number >> 4);
     }
 
     private int getNextWord() {
@@ -132,7 +161,7 @@ public class VirtualMachine {
 
     // Only use this for 1, 2 or 4 Bytes
     private int getMemory(int address, int size) {
-        assert(size == 1 || size == 2 || size == 4);
+        checkSize(size);
         return switch (size) {
             case 1 -> getByte(address);
             case 2 -> getHalfword(address);
@@ -141,9 +170,15 @@ public class VirtualMachine {
         };
     }
 
+    private int getNextMemory(int size) {
+        int result = getMemory(getPC(size), size);
+        setPC(getPC(size) + size, size);
+        return result;
+    }
+
     // Only use this for 1, 2 or 4 Bytes
     private void setMemory(int address, int size, int result) {
-        assert(size == 1 || size == 2 || size == 4);
+        checkSize(size);
         switch (size) {
             case 1 -> setByte(address, result);
             case 2 -> setHalfword(address, result);
@@ -153,6 +188,24 @@ public class VirtualMachine {
 
     private int getAddress(int address) {
         return getMemory(address, 4);
+    }
+
+    private int computeStackAddressingWithMinus(int reg, int operandSize) {
+        int address = getRegister(reg);
+        address -= operandSize;
+        setRegister(reg, WORD_SIZE, address);
+        return address;
+    }
+
+    private int computeRelativeAddressing(int reg, int size_of_a) {
+        int a = getNextMemory(size_of_a);
+        return getRegister(reg) + a;
+    }
+
+    private int computeIndirectAddressing(int reg, int size_of_a) {
+        int a = getNextMemory(size_of_a);
+        int address1 = getRegister(reg) + a;
+        return getAddress(address1);
     }
 
     private int getNextOperand(int operandSize) {
@@ -171,16 +224,17 @@ public class VirtualMachine {
             } break;
             // Register Addressing
             case AddressType.REGISTER_ADDRESSING: {
-                result = registers[reg];
+                result = getRegister(reg, operandSize);
             } break;
             // Relative Addressing a + !Rx, where a = 0
             case AddressType.RELATIVE_ADDRESSING_WITH_ZERO: {
-                result = memory[registers[reg]];
+                int reg_value = getRegister(reg, operandSize);
+                result = getMemory(reg_value, operandSize);
             } break;
             // Stack Addressing by -!Rx
             case AddressType.STACK_ADDRESSING_WITH_MINUS: {
-                registers[reg] -= operandSize;
-                result = memory[registers[reg]];
+                int address = computeStackAddressingWithMinus(reg, operandSize);
+                result = getMemory(address, operandSize);
             } break;
             case AddressType.BIG_DIRECT_OPERAND_OR_STACK_ADDRESSING_WITH_PLUS: {
                 // Direct Operand bigger than 63
@@ -192,8 +246,9 @@ public class VirtualMachine {
                 }
                 // Stack Addressing by !Rx+
                 else {
-                    result = memory[registers[reg]];
-                    registers[reg] += operandSize;
+                    int address = getRegister(reg);
+                    result = getMemory(address, operandSize);
+                    setRegister(reg, WORD_SIZE, address + operandSize);
                 } break;
             }
             // Absolute Addressing
@@ -205,41 +260,32 @@ public class VirtualMachine {
             } break;
             // Relative Addressing a + !Rx, where a fits into one byte
             case AddressType.RELATIVE_ADDRESSING_WITH_BYTE: {
-                int a = getNextByte();
-                int address = registers[reg] + a;
-                result = memory[address]; //TODO: All these result assignments currently ignore the operand_size
+                int address = computeRelativeAddressing(reg, BYTE_SIZE);
+                result = getMemory(address, operandSize);
             } break;
             // Relative Addressing a + !Rx, where a fits into two byte
             case AddressType.RELATIVE_ADDRESSING_WITH_HALFWORD: {
-                int a = getNextHalfword();
-                int address = registers[reg] + a;
-                result = memory[address];
+                int address = computeRelativeAddressing(reg, HALFWORD_SIZE);
+                result = getMemory(address, operandSize);
             } break;
             case AddressType.RELATIVE_ADDRESSING_WITH_WORD: {
-                int a = getNextWord();
-                int address = registers[reg] + a;
-                result = memory[address];
+                int address = computeRelativeAddressing(reg, WORD_SIZE);
+                result = getMemory(address, operandSize);
             } break;
             case AddressType.INDICATED_RELATIVE_ADDRESSING: {
                 //TODO: Implement me
             } break;
             case AddressType.INDIRECT_ADDRESSING_WITH_BYTE: {
-                int a = getNextByte();
-                int address1 = registers[reg] + a;
-                int address2 = getAddress(address1);
-                result = getMemory(address2, operandSize);
+                int address = computeIndirectAddressing(reg, BYTE_SIZE);
+                result = getMemory(address, operandSize);
             } break;
             case AddressType.INDIRECT_ADDRESSING_WITH_HALFWORD: {
-                int a = getNextHalfword();
-                int address1 = registers[reg] + a;
-                int address2 = getAddress(address1);
-                result = getMemory(address2, operandSize);
+                int address = computeIndirectAddressing(reg, HALFWORD_SIZE);
+                result = getMemory(address, operandSize);
             } break;
             case AddressType.INDIRECT_ADDRESSING_WITH_WORD: {
-                int a = getNextWord();
-                int address1 = registers[reg] + a;
-                int address2 = getAddress(address1);
-                result = getMemory(address2, operandSize);
+                int address = computeIndirectAddressing(reg, WORD_SIZE);
+                result = getMemory(address, operandSize);
             } break;
             default: assert(false);
         }
@@ -250,12 +296,27 @@ public class VirtualMachine {
     private void saveResult(int result, int operandSize) {
         //TODO: For now only handling Registers
         int b = getNextByte();
+
+        int reg = (b & 0x0F);
         int addressType = b >> 4;
 
         switch (addressType) {
             case AddressType.REGISTER_ADDRESSING: {
-                int reg = (b & 0x0F);
-                registers[reg] = result;
+                setRegister(reg, operandSize, result);
+            } break;
+            case AddressType.RELATIVE_ADDRESSING_WITH_ZERO: {
+                int reg_value = getRegister(reg, operandSize);
+                setMemory(reg_value, operandSize, result);
+            } break;
+            case AddressType.STACK_ADDRESSING_WITH_MINUS: {
+                int address = computeStackAddressingWithMinus(reg, operandSize);
+                setMemory(address, operandSize, result);
+            } break;
+            case AddressType.BIG_DIRECT_OPERAND_OR_STACK_ADDRESSING_WITH_PLUS: {
+                assert(reg != 15); // Note: Direct Operands can't save a result
+                int address = getRegister(reg);
+                setMemory(address, operandSize, result);
+                setRegister(reg, WORD_SIZE, address + operandSize);
             } break;
             case AddressType.ABSOLUT_ADDRESS: {
                 assert((b & 0x0F) == 15); //Not sure why the rest of the byte has to be 15
@@ -263,7 +324,32 @@ public class VirtualMachine {
                 int address = getNextWord();
                 setMemory(address, operandSize, result);
             } break;
-            //TODO: Other cases
+            // Relative Addressing a + !Rx, where a fits into one byte
+            case AddressType.RELATIVE_ADDRESSING_WITH_BYTE: {
+                int address = getNextMemory(BYTE_SIZE);
+                setMemory(address, operandSize, result);
+            } break;
+            // Relative Addressing a + !Rx, where a fits into two byte
+            case AddressType.RELATIVE_ADDRESSING_WITH_HALFWORD: {
+                int address = getNextMemory(HALFWORD_SIZE);
+                setMemory(address, operandSize, result);
+            } break;
+            case AddressType.RELATIVE_ADDRESSING_WITH_WORD: {
+                int address = getNextMemory(WORD_SIZE);
+                setMemory(address, operandSize, result);
+            } break;
+            case AddressType.INDIRECT_ADDRESSING_WITH_BYTE: {
+                int address = computeIndirectAddressing(reg, BYTE_SIZE);
+                setMemory(address, operandSize, result);
+            } break;
+            case AddressType.INDIRECT_ADDRESSING_WITH_HALFWORD: {
+                int address = computeIndirectAddressing(reg, HALFWORD_SIZE);
+                setMemory(address, operandSize, result);
+            } break;
+            case AddressType.INDIRECT_ADDRESSING_WITH_WORD: {
+                int address = computeIndirectAddressing(reg, WORD_SIZE);
+                setMemory(address, operandSize, result);
+            } break;
         }
     }
 
