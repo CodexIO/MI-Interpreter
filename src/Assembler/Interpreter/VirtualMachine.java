@@ -14,6 +14,8 @@ public class VirtualMachine {
     public static final int BYTE_SIZE = 1;
     public static final int HALFWORD_SIZE = 2;
     public static final int WORD_SIZE = 4;
+    public static final int FLOAT_SIZE = 4;
+    public static final int DOUBLE_SIZE = 8;
 
     public class AddressType {
         public static final int ABSOLUT_ADDRESS = 9;
@@ -61,11 +63,11 @@ public class VirtualMachine {
     }
 
     //region Getter and Setter
-    private int getPC(int size) {
+    public int getPC(int size) {
         return getRegister(PC_REGISTER, size);
     }
 
-    private void setPC(int value, int size) {
+    public void setPC(int value, int size) {
         setRegister(PC_REGISTER, size, value);
     }
 
@@ -160,7 +162,7 @@ public class VirtualMachine {
     }
 
     // Only use this for 1, 2 or 4 Bytes
-    private int getMemory(int address, int size) {
+    public int getMemory(int address, int size) {
         checkSize(size);
         return switch (size) {
             case 1 -> getByte(address);
@@ -183,6 +185,7 @@ public class VirtualMachine {
             case 1 -> setByte(address, result);
             case 2 -> setHalfword(address, result);
             case 4 -> setWord(address, result);
+            //TODO: Maybe need to support 8 here for DOUBLES
         }
     }
 
@@ -241,7 +244,7 @@ public class VirtualMachine {
                 if (reg == 15) {
                     for (int i = 0; i < operandSize; i++) {
                         int op = getNextByte();
-                        result = (result << 4) + op;
+                        result = (result << 8) + op;
                     }
                 }
                 // Stack Addressing by !Rx+
@@ -361,10 +364,23 @@ public class VirtualMachine {
         //opcode & 0xFF makes the Byte unsigned
         switch(OpCode.find(opcode)) {
             case HALT: halt(); break;
-            case MOVE_B: move_b(1); break;
+
+            case CMP_B: cmp_I(BYTE_SIZE); break;
+            case CMP_H: cmp_I(HALFWORD_SIZE); break;
+            case CMP_W: cmp_I(WORD_SIZE); break;
+
+            case CLEAR_B: clear(BYTE_SIZE);
+            case CLEAR_H: clear(HALFWORD_SIZE);
+            case CLEAR_W: clear(WORD_SIZE);
+            case CLEAR_F: clear(FLOAT_SIZE);
+            case CLEAR_D: clear(DOUBLE_SIZE); //TODO: Check if 8 Byte work
+
+            case MOVE_B: move(BYTE_SIZE); break;
 
 
             case ADD_B2: add_b2(); break;
+            case ADD_H2: add_h2(); break;
+            case ADD_W2: add_w2(); break;
             case ADD_B3: add_b3(); break;
 
             case SUB_B2: sub_b2();
@@ -385,26 +401,53 @@ public class VirtualMachine {
         programHaltet = true;
     }
 
-    public void move_b(int size) {
+    public void move(int size) {
         int a1 = getNextOperand(size);
         saveResult(a1, size);
     }
 
-    public void cmp_b() {
+    public void cmp_I(int size) {
+        int a1 = getNextOperand(size);
+        int a2 = getNextOperand(size);
 
+        Z = (a1 == a2);
+        N = (a1 < a2);
+    }
+
+    public void clear(int size) {
+        saveResult(0, size);
     }
 
     public void cmp_h() {
 
     }
 
+    //TODO: GROUP THE ADDS TOGETHER MAYBE?
     public void add_b2() {
-        int a1 = getNextOperand(1);
-        int a2 = getNextOperand(1);
+        int a1 = getNextOperand(BYTE_SIZE);
+        int a2 = getNextOperand(BYTE_SIZE);
         int result = a1 + a2;
 
         decPC();
-        saveResult(result, 1);
+        saveResult(result, BYTE_SIZE);
+    }
+
+    public void add_h2() {
+        int a1 = getNextOperand(HALFWORD_SIZE);
+        int a2 = getNextOperand(HALFWORD_SIZE);
+        int result = a1 + a2;
+
+        decPC();
+        saveResult(result, HALFWORD_SIZE);
+    }
+
+    public void add_w2() {
+        int a1 = getNextOperand(WORD_SIZE);
+        int a2 = getNextOperand(WORD_SIZE);
+        int result = a1 + a2;
+
+        decPC();
+        saveResult(result, WORD_SIZE);
     }
 
     public void add_b3() {
