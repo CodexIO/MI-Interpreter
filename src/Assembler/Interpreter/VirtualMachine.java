@@ -33,6 +33,10 @@ public class VirtualMachine {
         public static final int STACK_ADDRESSING_WITH_MINUS = 7;
     }
 
+    public enum Operation {
+        or, andnot, xor, add, sub, mult, div
+    }
+
     // Condition Codes / Flags
     private boolean C, Z, N, V;
 
@@ -376,7 +380,25 @@ public class VirtualMachine {
             case CLEAR_D: clear(DOUBLE_SIZE); //TODO: Check if 8 Byte work
 
             case MOVE_B: move(BYTE_SIZE); break;
+            case MOVE_H: move(HALFWORD_SIZE); break;
+            case MOVE_W: move(WORD_SIZE); break;
 
+            case MOVEN_B: moven_I(BYTE_SIZE); break;
+            case MOVEN_H: moven_I(HALFWORD_SIZE); break;
+            case MOVEN_W: moven_I(WORD_SIZE); break;
+
+            case MOVEC_B: movec(BYTE_SIZE); break;
+            case MOVEC_H: movec(HALFWORD_SIZE); break;
+            case MOVEC_W: movec(WORD_SIZE); break;
+
+            case OR_B2: or_2(BYTE_SIZE); break;
+            case OR_H2: or_2(HALFWORD_SIZE); break;
+            case OR_W2: or_2(WORD_SIZE); break;
+            case OR_B3: or_3(BYTE_SIZE); break;
+            case OR_H3: or_3(HALFWORD_SIZE); break;
+            case OR_W3: or_3(WORD_SIZE); break;
+
+            case ANDNOT_B2: andnot_2(BYTE_SIZE); break;
 
             case ADD_B2: add_b2(); break;
             case ADD_H2: add_h2(); break;
@@ -418,8 +440,62 @@ public class VirtualMachine {
         saveResult(0, size);
     }
 
-    public void cmp_h() {
+    public void moven_I(int size) {
+        int a1 = getNextOperand(size);
+        saveResult(-a1, size);
+    }
 
+    public void movec(int size) {
+        int a1 = getNextOperand(size);
+        saveResult(~a1, size);
+    }
+
+    public void movea() {
+        //TODO: This is not the same as move. Figure out how to do this
+        //int a1 = getNextOperand(WORD_SIZE);
+        //saveResult(a1, WORD_SIZE);
+    }
+
+    public void HOW_TO_NAME_THIS(int size, Operation op, boolean twoOperands) {
+        int a1 = getNextOperand(size);
+        int a2 = getNextOperand(size);
+        int result = switch (op) {
+            case or -> a1 | a2;
+            case andnot -> a1 & ~ a2;
+            case xor -> a1 ^ a2;
+            case add -> a1 + a2;
+            case sub -> a2 - a1;
+            case mult -> a1 * a2;
+            case div -> a2 / a1;
+        };
+        if (twoOperands) decPC();
+
+        saveResult(result, size);
+    }
+
+    public void or_2(int size) {
+        int a1 = getNextOperand(size);
+        int a2 = getNextOperand(size);
+        int result = a1 | a2;
+
+        decPC();
+        saveResult(result, size);
+    }
+
+    public void or_3(int size) {
+        int a1 = getNextOperand(size);
+        int a2 = getNextOperand(size);
+        int result = a1 | a2;
+
+        saveResult(result, size);
+    }
+
+    public void andnot_2(int size) {
+        int a1 = getNextOperand(size);
+        int a2 = getNextOperand(size);
+        int result = (a1 & ~a2);
+
+        saveResult(result, size);
     }
 
     //TODO: GROUP THE ADDS TOGETHER MAYBE?
