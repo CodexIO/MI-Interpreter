@@ -3,6 +3,7 @@ package Assembler.Interpreter;
 import Assembler.OpCode;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 
 public class VirtualMachine {
 
@@ -17,7 +18,7 @@ public class VirtualMachine {
     public static final int FLOAT_SIZE = 4;
     public static final int DOUBLE_SIZE = 8;
 
-    public class AddressType {
+    public static class AddressType {
         public static final int ABSOLUT_ADDRESS = 9;
         public static final int SMALL_DIRECT_OPERAND = 0;
         public static final int BIG_DIRECT_OPERAND_OR_STACK_ADDRESSING_WITH_PLUS = 8;
@@ -31,10 +32,12 @@ public class VirtualMachine {
         public static final int INDIRECT_ADDRESSING_WITH_HALFWORD = 13;
         public static final int INDIRECT_ADDRESSING_WITH_WORD = 15;
         public static final int STACK_ADDRESSING_WITH_MINUS = 7;
+
+        private AddressType() {}
     }
 
     public enum Operation {
-        or, andnot, xor, add, sub, mult, div
+        OR, ANDNOT, XOR, ADD, SUB, MULT, DIV
     }
 
     // Condition Codes / Flags
@@ -48,21 +51,50 @@ public class VirtualMachine {
 
     private boolean programHaltet;
 
-    public VirtualMachine(int begin, byte[] content) {
+    public VirtualMachine(int begin, byte[] memory) {
         //TODO: Handle bad input
 
-        for (int i = 0;  i < content.length; i++) {
+        for (int i = 0;  i < memory.length; i++) {
             int address = begin + i;
-            memory[address] = content[i];
+            this.memory[address] = memory[i];
             changedMemory.add(address);
         }
     }
 
-    public VirtualMachine(byte[] content) {
-        this(0, content);
+    public VirtualMachine(byte[] memory) {
+        this(0, memory);
     }
 
-    public void checkSize(int size) {
+    public VirtualMachine(byte[] memory, int[] registers) {
+        this(memory);
+        System.arraycopy(registers, 0, this.registers, 0, registers.length);
+    }
+
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+        int lastNonZeroByteIndex = memory.length -1;
+        while (memory[lastNonZeroByteIndex] == 0) lastNonZeroByteIndex--;
+        for (int i = 0; i <= lastNonZeroByteIndex; i++) {
+            if (i % 16 == 0) {
+                sb.append("\n|");
+                sb.append(String.format("%010X", i));
+                sb.append("| ");
+            }
+            sb.append(String.format("%02X", memory[i] & 0xFF));
+            sb.append(" ");
+        }
+        return "VirtualMachine {\n" +
+                "  C=" + C +
+                ", Z=" + Z +
+                ", N=" + N +
+                ", V=" + V + "\n" +
+                "  memory=" + sb.toString() + "\n" +
+                "  registers=" + Arrays.toString(registers) + "\n" +
+                '}';
+    }
+
+    private void checkSize(int size) {
         assert(size == BYTE_SIZE || size == HALFWORD_SIZE || size == WORD_SIZE);
     }
 
@@ -390,11 +422,11 @@ public class VirtualMachine {
             case CMP_H: cmp_I(HALFWORD_SIZE); break;
             case CMP_W: cmp_I(WORD_SIZE); break;
 
-            case CLEAR_B: clear(BYTE_SIZE);
-            case CLEAR_H: clear(HALFWORD_SIZE);
-            case CLEAR_W: clear(WORD_SIZE);
-            case CLEAR_F: clear(FLOAT_SIZE);
-            case CLEAR_D: clear(DOUBLE_SIZE); //TODO: Check if 8 Byte work
+            case CLEAR_B: clear(BYTE_SIZE); break;
+            case CLEAR_H: clear(HALFWORD_SIZE); break;
+            case CLEAR_W: clear(WORD_SIZE); break;
+            case CLEAR_F: clear(FLOAT_SIZE); break;
+            case CLEAR_D: clear(DOUBLE_SIZE); break;//TODO: Check if 8 Byte work
 
             case MOVE_B: move(BYTE_SIZE); break;
             case MOVE_H: move(HALFWORD_SIZE); break;
@@ -417,7 +449,7 @@ public class VirtualMachine {
 
             case ANDNOT_B2: andnot_2(BYTE_SIZE); break;
 
-            case ADD_B2: add_b2(); break;
+            case ADD_B2: HOW_TO_NAME_THIS(BYTE_SIZE, Operation.ADD, true); break;
             case ADD_H2: add_h2(); break;
             case ADD_W2: add_w2(); break;
             case ADD_B3: add_b3(); break;
@@ -496,29 +528,30 @@ public class VirtualMachine {
         int a1 = getNextOperand(size);
         int a2 = getNextOperand(size);
         int result = switch (op) {
-            case or -> a1 | a2;
-            case andnot -> a1 & ~ a2;
-            case xor -> a1 ^ a2;
-            case add -> a1 + a2;
-            case sub -> a2 - a1;
-            case mult -> a1 * a2;
-            case div -> a2 / a1;
+            case OR -> a1 | a2;
+            case ANDNOT -> a1 & ~ a2;
+            case XOR -> a1 ^ a2;
+            case ADD -> a1 + a2;
+            case SUB -> a2 - a1;
+            case MULT -> a1 * a2;
+            case DIV -> a2 / a1;
         };
 
         switch (op) {
-            case or, andnot, xor -> setOrAndnotXorFlags(result, size);
-            case add, sub -> {
+            case OR, ANDNOT, XOR -> setOrAndnotXorFlags(result, size);
+            case ADD, SUB -> {
                 //TODO: Set Carry @Felix klären wie Carry sich verhält
                 setV(result, size);
                 setZ(result, size);
                 setN(result, size);
             }
-            case mult, div -> {
+            case MULT, DIV -> {
                 C = false;
                 setV(result, size);
                 setZ(result, size);
                 setN(result, size);
             }
+
         }
 
         if (twoOperands) decPC();
