@@ -48,7 +48,7 @@ public enum OpCode {
     MOVEC_H("MOVEC_H", 0xA9, 2, HALFWORD),
     MOVEC_W("MOVEC_W", 0xAA, 2, WORD),
     MOVEA("MOVEA", 0xAB, 2, WORD),
-    //CONV
+    //CONV TODO: implement this @Felix macht das negative propagation?
     OR_B2("OR_B2", 0xAD, 2, BYTE),
     OR_H2("OR_H2", 0xAE, 2, HALFWORD),
     OR_W2("OR_W2", 0xAF, 2, WORD),

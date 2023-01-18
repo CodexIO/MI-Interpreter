@@ -91,6 +91,23 @@ public class VirtualMachine {
         setRegister(SP_REGISTER, size, value);
     }
 
+    public void setV(int result, int size) {
+        //TODO: @Felix fragen wie genau das gemeint ist.
+    }
+
+    public void setZ(int result, int size) {
+        result = normaliseResult(result, size);
+        Z = (result == 0);
+    }
+
+    public void setN(int result, int size) {
+        N = ((result & (0x80 << size * 8)) != 0);
+    }
+
+    public int normaliseResult(int result, int size) {
+        return result & (0xFFFF_FFFF >> (4 - size) * 8);
+    }
+
     private int getNextByte() {
         int result = getByte(getPC(WORD_SIZE));
         incPC();
@@ -425,6 +442,11 @@ public class VirtualMachine {
 
     public void move(int size) {
         int a1 = getNextOperand(size);
+
+        V = false;
+        setZ(a1, size);
+        setN(a1, size);
+
         saveResult(a1, size);
     }
 
@@ -437,17 +459,31 @@ public class VirtualMachine {
     }
 
     public void clear(int size) {
+        V = false;
+        Z = true;
+        N = false;
         saveResult(0, size);
     }
 
     public void moven_I(int size) {
-        int a1 = getNextOperand(size);
-        saveResult(-a1, size);
+        int result = -getNextOperand(size);
+
+        C = false;
+        setV(result, size);
+        setZ(result, size);
+        setN(result, size);
+
+        saveResult(result, size);
     }
 
     public void movec(int size) {
-        int a1 = getNextOperand(size);
-        saveResult(~a1, size);
+        int a1 = ~ getNextOperand(size);
+
+        V = false;
+        setZ(a1, size);
+        setN(a1, size);
+
+        saveResult(a1, size);
     }
 
     public void movea() {
@@ -468,15 +504,39 @@ public class VirtualMachine {
             case mult -> a1 * a2;
             case div -> a2 / a1;
         };
-        if (twoOperands) decPC();
 
+        switch (op) {
+            case or, andnot, xor -> setOrAndnotXorFlags(result, size);
+            case add, sub -> {
+                //TODO: Set Carry @Felix klären wie Carry sich verhält
+                setV(result, size);
+                setZ(result, size);
+                setN(result, size);
+            }
+            case mult, div -> {
+                C = false;
+                setV(result, size);
+                setZ(result, size);
+                setN(result, size);
+            }
+        }
+
+        if (twoOperands) decPC();
         saveResult(result, size);
+    }
+
+    private void setOrAndnotXorFlags(int result, int size) {
+        V = false;
+        setZ(result, size);
+        setN(result, size);
     }
 
     public void or_2(int size) {
         int a1 = getNextOperand(size);
         int a2 = getNextOperand(size);
         int result = a1 | a2;
+
+        setOrAndnotXorFlags(result, size);
 
         decPC();
         saveResult(result, size);
@@ -487,6 +547,8 @@ public class VirtualMachine {
         int a2 = getNextOperand(size);
         int result = a1 | a2;
 
+        setOrAndnotXorFlags(result, size);
+
         saveResult(result, size);
     }
 
@@ -494,6 +556,8 @@ public class VirtualMachine {
         int a1 = getNextOperand(size);
         int a2 = getNextOperand(size);
         int result = (a1 & ~a2);
+
+        setOrAndnotXorFlags(result, size);
 
         saveResult(result, size);
     }
