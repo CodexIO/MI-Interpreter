@@ -135,6 +135,7 @@ public enum OpCode {
     public final int operands;
     public final DataType type;
 
+    //TODO @Speed make a hashtable or array for this.
     public static OpCode find(int code) {
         for (OpCode op : OpCode.values()) {
             if (op.opcode == code) return op;
@@ -148,6 +149,10 @@ public enum OpCode {
         opcode = opC;
         operands = o;
         type = t;
+    }
+
+    public static OpCode getOpCode(String command, OpCode.DataType size) {
+
     }
 
     public enum DataType {

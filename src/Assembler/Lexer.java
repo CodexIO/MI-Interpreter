@@ -96,14 +96,14 @@ public class Lexer {
             return lexNumberConstant();
         }
 
-        switch (c) {
-            case '+': return newToken(Type.PLUS);
-            case '-': return newToken(Type.MINUS);
-            case ',': return newToken(Type.COMMA);
-            case '!': return newToken(Type.BANG);
-            case '/': return newToken(Type.SLASH);
-            case ':': return newToken(Type.COLON);
-            default: return newToken(Type.UNKNOWN);
-        }
+        return switch (c) {
+            case '+' -> newToken(Type.PLUS);
+            case '-' -> newToken(Type.MINUS);
+            case ',' -> newToken(Type.COMMA);
+            case '!' -> newToken(Type.BANG);
+            case '/' -> newToken(Type.SLASH);
+            case ':' -> newToken(Type.COLON);
+            default -> newToken(Type.UNKNOWN);
+        };
     }
 }
