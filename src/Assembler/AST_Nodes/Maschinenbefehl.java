@@ -1,8 +1,8 @@
 package Assembler.AST_Nodes;
-
+/*
 import Assembler.OpCode;
 
-public class Maschinenbefehl extends Anweisung{
+public class Maschinenbefehl extends Command {
 
     public OpCode opCode;
 
@@ -12,3 +12,4 @@ public class Maschinenbefehl extends Anweisung{
     }
 
 }
+*/

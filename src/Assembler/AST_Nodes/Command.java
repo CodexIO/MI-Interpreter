@@ -7,7 +7,7 @@ public abstract class Command {
     /**
      * Zeile des Quelltextes in der der Befehl steht
      */
-    protected int line;
+    protected int row;
 
     /**
      * Adresse des Befehls im Speicher
@@ -36,7 +36,7 @@ public abstract class Command {
      */
     public Command(OpCode op, int line, int address, int beg, int end) {
         this.op = op;
-        this.line = line;
+        this.row = line;
         this.address = address;
         this.beg = beg;
         this.end = end;

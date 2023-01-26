@@ -1,8 +1,6 @@
 package Assembler.AST_Nodes;
 
-public abstract class Operand {
-
-    public int address;
+public interface Operand {
 
     public abstract byte[] generateMachineCode();
 

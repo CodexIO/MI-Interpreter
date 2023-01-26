@@ -5,7 +5,7 @@ import Assembler.AST_Nodes.*;
 import java.util.ArrayList;
 import java.util.Dictionary;
 
-import static Assembler.Token.Type.COMMA;
+import static Assembler.Token.Type.*;
 
 public class Parser {
 
@@ -14,47 +14,66 @@ public class Parser {
     private ArrayList<Command> commands;
     private Dictionary<String, Integer> labelAdresses;
 
-    private int currentAdress = 0;
+    private int currentAddress = 0;
 
     public Parser(Lexer lexer) {
         lx = lexer;
         commands = new ArrayList<Command>();
     }
 
-    private void check(Token.Type type) {
+    private void eat(Token.Type type) {
         Token tk = lx.nextToken();
-        if (tk.type != type) ;//TODO: ERROR
+        if (tk.type != type) assert(false);//TODO: ERROR
     }
 
     private boolean match(Token.Type type) {
         //TODO: Figure out how to peekToken. Maybe Lex all the Tokens upfront
         Token tk = lx.peekToken();
         if (tk.type == type) {
-            lx.advance();
+            lx.nextToken();
             return true;
         }
         return false;
     }
 
+    public ArrayList<Byte> generateMachineCode() {
+        ArrayList<Byte> code = new ArrayList<>();
+        for(Command cmd : commands) {
+            //TODO: Do i want to use ArrayList instead of byte[] everywhere?
+            byte[] bytes = cmd.generateMachineCode();
+            for(byte b : bytes) {
+                code.add(b);
+            }
+        }
+        return code;
+    }
+
     public void parse() {
         Token tk = lx.nextToken();
 
-        switch (tk.type) {
-            case KEYWORD -> parseKeyword(tk);
+        while (tk.type != UNKNOWN) {
+            switch (tk.type) {
+                case KEYWORD -> parseKeyword(tk);
+                default -> System.out.println("Unhandled TokenType: " + tk.type + " Lexeme: " + tk.lexeme);
+            }
+            tk = lx.nextToken();
         }
     }
 
     private void parseKeyword(Token command) {
 
         //TODO @Speed This String comparisons are probably slow.
-        switch (command.lexeme) {
+        Command cmd = switch (command.lexeme) {
             case "ADD" -> parseCommand(command);
 
-            default ->
-        }
+            default -> null;
+        };
+
+        commands.add(cmd);
     }
 
     private Command parseCommand(Token command) {
+        int address = currentAddress;
         Token tk = lx.nextToken();
         //TODO: Check if tk is really a size indicator
         OpCode.DataType size = switch (tk.lexeme) {
@@ -68,22 +87,67 @@ public class Parser {
 
         OpCode op = OpCode.getOpCode(command.lexeme, size);
 
-        Operand a1 = parseOperand();
-        check(COMMA);
+        Operand a1 = parseOperand(size);
+        eat(COMMA);
 
-        Operand a2 = parseOperand();
+        Operand a2 = parseOperand(size);
+
+        Operand a3 = null;
 
         if (match(COMMA)) {
-
+            a3 = parseOperand(size);
         }
+
+        //TODO: Think of a convenient way to keep track of current line and row
+        //TODO:                                      |
+        return new AST_Add(op, command.row, address, command.col, -1, a1, a2, a3);
     }
 
-    private Operand parseOperand() {
+    private Operand parseOperand(OpCode.DataType size) {
         Token tk = lx.nextToken();
 
-        return switch (tk.lexeme) {
-            case "I" -> parseImmediateOperand();
-        };
+        if (tk.lexeme.equals("I")) {
+            return parseImmediateOperand(size);
+        }
+        else if (tk.type == CONSTANT) {
+            if (lx.peekToken().type == PLUS)
+                return parseRelativeAddress(tk);
+            else
+                return parseAbsoluteAddress(tk, size);
+        }
+        else if (tk.lexeme.startsWith("R")) {
+            return parseRegisterAddress(tk);
+        }
+        else {
+            //TODO: ERROR
+        }
+
+        return null; //TODO: remove this
+    }
+
+    private RelativeAddress parseRelativeAddress(Token tk) {
+        int offset = Integer.parseInt(tk.lexeme);
+
+        eat(PLUS);
+        eat(BANG);
+
+        Token regTk = lx.nextToken();
+        RegisterAddress reg = parseRegisterAddress(regTk);
+
+        return new RelativeAddress(offset, reg.getReg());
+    }
+
+    private RegisterAddress parseRegisterAddress(Token tk) {
+        String s = tk.lexeme.substring(1);
+        int reg = Integer.parseInt(s);
+
+        return new RegisterAddress(reg);
+    }
+
+    private AbsoluteAddress parseAbsoluteAddress(Token tk, OpCode.DataType size) {
+        int address = Integer.parseInt(tk.lexeme);
+
+        return new AbsoluteAddress(address);
     }
 
     private ImmediateOperand parseImmediateOperand(OpCode.DataType size) {
@@ -115,5 +179,6 @@ public class Parser {
                 //TODO: ERROR
             }
         }
+        return null; //TODO: Remove this
     }
 }

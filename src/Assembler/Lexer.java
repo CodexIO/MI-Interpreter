@@ -11,6 +11,8 @@ public class Lexer {
     private int index = 0;       // Indexes the current position in the String
     private int start = 0;       // Marks the start position of the current Token
 
+    private Token peekedToken;
+
     public Lexer(String i) {
         source = i + "\0";
     }
@@ -71,6 +73,7 @@ public class Lexer {
 
         Token tk = newToken(Type.IDENTIFIER);
 
+        if(tk.lexeme.equals("ADD")) tk.type = Type.KEYWORD;
         // TODO: Check if the Token is a Keyword.
 
         return tk;
@@ -82,7 +85,20 @@ public class Lexer {
         return newToken(Type.CONSTANT);
     }
 
+    public Token peekToken() {
+        peekedToken = nextToken();
+        return peekedToken;
+    }
+
     public Token nextToken() {
+        // This is used, so we can peek a Token without Lexing all the
+        // tokens up front.
+        if (peekedToken != null) {
+            Token tmp = peekedToken;
+            peekedToken = null;
+            return tmp;
+        }
+
         eatWhitespace();
         eatComments();
 

@@ -152,7 +152,8 @@ public enum OpCode {
     }
 
     public static OpCode getOpCode(String command, OpCode.DataType size) {
-
+        //TODO: return something usefull
+        return null;
     }
 
     public enum DataType {
