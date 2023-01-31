@@ -10,9 +10,9 @@ public class AbsoluteAddress implements Operand {
 
     @Override
     public byte[] generateMachineCode() {
-        byte b1 = (byte) (address >> 24);
-        byte b2 = (byte) (address >> 16);
-        byte b3 = (byte) (address >> 8);
+        byte b1 = (byte) (address >>> 24);
+        byte b2 = (byte) (address >>> 16);
+        byte b3 = (byte) (address >>> 8);
         byte b4 = (byte) (address & 0xFF);
 
         return new byte[]{ (byte) 0x9F, b1, b2, b3, b4};

@@ -146,13 +146,26 @@ public enum OpCode {
 
     OpCode(String n, int opC, int o, DataType t) {
         name = n;
-        opcode = opC;
+        opcode = (opC & 0xFF);
         operands = o;
         type = t;
     }
 
-    public static OpCode getOpCode(String command, OpCode.DataType size) {
-        //TODO: return something usefull
+    public static OpCode getOpCode(String command, OpCode.DataType operandSize, int operandCount) {
+        char dataType = switch (operandSize) {
+            case BYTE -> 'B';
+            case HALFWORD -> 'H';
+            case WORD -> 'W';
+            case FLOAT -> 'F';
+            case DOUBLE -> 'D';
+            case NONE -> '0';
+        };
+        String name = command + "_" + dataType + operandCount;
+
+        for (OpCode op : OpCode.values()) {
+            if (op.name.equals(name)) return op;
+        }
+
         return null;
     }
 

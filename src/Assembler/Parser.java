@@ -37,6 +37,7 @@ public class Parser {
     }
 
     public ArrayList<Byte> generateMachineCode() {
+        System.out.println("Generating MachineCode for the input:\n" + lx.source);
         ArrayList<Byte> code = new ArrayList<>();
         for(Command cmd : commands) {
             //TODO: Do i want to use ArrayList instead of byte[] everywhere?
@@ -85,7 +86,9 @@ public class Parser {
             default -> OpCode.DataType.NONE;
         };
 
-        OpCode op = OpCode.getOpCode(command.lexeme, size);
+        //TODO: Check if operands are really always
+        //TODO  2 or 3... Probably not
+        int operands = 2;
 
         Operand a1 = parseOperand(size);
         eat(COMMA);
@@ -96,7 +99,11 @@ public class Parser {
 
         if (match(COMMA)) {
             a3 = parseOperand(size);
+            operands = 3;
         }
+
+        OpCode op = OpCode.getOpCode(command.lexeme, size, operands);
+
 
         //TODO: Think of a convenient way to keep track of current line and row
         //TODO:                                      |

@@ -76,7 +76,7 @@ public class VirtualMachine {
         int lastNonZeroByteIndex = memory.length -1;
         while (memory[lastNonZeroByteIndex] == 0) lastNonZeroByteIndex--;
         for (int i = 0; i <= lastNonZeroByteIndex; i++) {
-            if (i % 16 == 0) {
+            if (i % 8 == 0) {
                 sb.append("\n|");
                 sb.append(String.format("%010X", i));
                 sb.append("| ");
@@ -89,7 +89,7 @@ public class VirtualMachine {
                 ", Z=" + Z +
                 ", N=" + N +
                 ", V=" + V + "\n" +
-                "  memory=" + sb.toString() + "\n" +
+                "  memory: {" + sb.toString() + "\n}\n" +
                 "  registers=" + Arrays.toString(registers) + "\n" +
                 '}';
     }
@@ -137,7 +137,7 @@ public class VirtualMachine {
     }
 
     public int normaliseResult(int result, int size) {
-        return result & (0xFFFF_FFFF >> (4 - size) * 8);
+        return result & (0xFFFF_FFFF >>> (4 - size) * 8);
     }
 
     private int getNextByte() {
@@ -148,7 +148,7 @@ public class VirtualMachine {
 
     private int getByte(int address) {
         byte result = memory[address];
-        return result & 0xFF;
+        return (result & 0xFF);
     }
 
     private void setByte(int address, int number) {
@@ -194,7 +194,7 @@ public class VirtualMachine {
 
     private void setHalfword(int address, int number) {
         setByte(address++, number);
-        setByte(address, number >> 4);
+        setByte(address, number >>> 4);
     }
 
     private int getNextWord() {
@@ -211,7 +211,7 @@ public class VirtualMachine {
 
     private void setWord(int address, int number) {
         setHalfword(address, number);
-        setHalfword(address, number >> 8);
+        setHalfword(address, number >>> 8);
     }
 
     // Only use this for 1, 2 or 4 Bytes
@@ -268,7 +268,7 @@ public class VirtualMachine {
         int b = getNextByte();
 
         int reg = (b & 0x0F);
-        int addressType = b >> 4;
+        int addressType = b >>> 4;
         if (addressType < 4) addressType = 0; // We do this so we only have to use one case statement for every direct Operand Case
 
         int result = 0;
@@ -350,62 +350,65 @@ public class VirtualMachine {
     }
 
     private void saveResult(int result, int operandSize) {
-        //TODO: For now only handling Registers
         int b = getNextByte();
 
         int reg = (b & 0x0F);
-        int addressType = b >> 4;
+        int regValue = getRegister(reg);
+
+        //TODO: @Felix Funktioniert der >>> operator richtig? Soll er nicht mit 0en auffüllen?
+        byte addressType = (byte) (b >>> 4);
 
         switch (addressType) {
-            case AddressType.REGISTER_ADDRESSING: {
+            case AddressType.REGISTER_ADDRESSING -> {
                 setRegister(reg, operandSize, result);
-            } break;
-            case AddressType.RELATIVE_ADDRESSING_WITH_ZERO: {
-                int reg_value = getRegister(reg, operandSize);
-                setMemory(reg_value, operandSize, result);
-            } break;
-            case AddressType.STACK_ADDRESSING_WITH_MINUS: {
+            }
+            case AddressType.RELATIVE_ADDRESSING_WITH_ZERO -> {
+                setMemory(regValue, operandSize, result);
+            }
+            case AddressType.STACK_ADDRESSING_WITH_MINUS -> {
                 int address = computeStackAddressingWithMinus(reg, operandSize);
                 setMemory(address, operandSize, result);
-            } break;
-            case AddressType.BIG_DIRECT_OPERAND_OR_STACK_ADDRESSING_WITH_PLUS: {
-                assert(reg != 15); // Note: Direct Operands can't save a result
+            }
+            case AddressType.BIG_DIRECT_OPERAND_OR_STACK_ADDRESSING_WITH_PLUS -> {
+                assert (reg != 15); // Note: Direct Operands can't save a result
                 int address = getRegister(reg);
                 setMemory(address, operandSize, result);
                 setRegister(reg, WORD_SIZE, address + operandSize);
-            } break;
-            case AddressType.ABSOLUT_ADDRESS: {
-                assert((b & 0x0F) == 15); //Not sure why the rest of the byte has to be 15
+            }
+            case AddressType.ABSOLUT_ADDRESS -> {
+                assert ((b & 0x0F) == 15); //Not sure why the rest of the byte has to be 15
 
                 int address = getNextWord();
                 setMemory(address, operandSize, result);
-            } break;
+            }
+
             // Relative Addressing a + !Rx, where a fits into one byte
-            case AddressType.RELATIVE_ADDRESSING_WITH_BYTE: {
-                int address = getNextMemory(BYTE_SIZE);
-                setMemory(address, operandSize, result);
-            } break;
+            case AddressType.RELATIVE_ADDRESSING_WITH_BYTE -> {
+                int a = getNextMemory(BYTE_SIZE);
+                setMemory(a + regValue, operandSize, result);
+            }
+
             // Relative Addressing a + !Rx, where a fits into two byte
-            case AddressType.RELATIVE_ADDRESSING_WITH_HALFWORD: {
-                int address = getNextMemory(HALFWORD_SIZE);
-                setMemory(address, operandSize, result);
-            } break;
-            case AddressType.RELATIVE_ADDRESSING_WITH_WORD: {
-                int address = getNextMemory(WORD_SIZE);
-                setMemory(address, operandSize, result);
-            } break;
-            case AddressType.INDIRECT_ADDRESSING_WITH_BYTE: {
+            case AddressType.RELATIVE_ADDRESSING_WITH_HALFWORD -> {
+                int a = getNextMemory(HALFWORD_SIZE);
+                setMemory(a + regValue, operandSize, result);
+            }
+            case AddressType.RELATIVE_ADDRESSING_WITH_WORD -> {
+                int a = getNextMemory(WORD_SIZE);
+                setMemory(a + regValue, operandSize, result);
+            }
+            case AddressType.INDIRECT_ADDRESSING_WITH_BYTE -> {
                 int address = computeIndirectAddressing(reg, BYTE_SIZE);
                 setMemory(address, operandSize, result);
-            } break;
-            case AddressType.INDIRECT_ADDRESSING_WITH_HALFWORD: {
+            }
+            case AddressType.INDIRECT_ADDRESSING_WITH_HALFWORD -> {
                 int address = computeIndirectAddressing(reg, HALFWORD_SIZE);
                 setMemory(address, operandSize, result);
-            } break;
-            case AddressType.INDIRECT_ADDRESSING_WITH_WORD: {
+            }
+            case AddressType.INDIRECT_ADDRESSING_WITH_WORD -> {
                 int address = computeIndirectAddressing(reg, WORD_SIZE);
                 setMemory(address, operandSize, result);
-            } break;
+            }
         }
     }
 
@@ -414,7 +417,6 @@ public class VirtualMachine {
     public void executeOneInstruction() {
         int opcode = getNextByte();
 
-        //opcode & 0xFF makes the Byte unsigned
         switch(OpCode.find(opcode)) {
             case HALT: halt(); break;
 

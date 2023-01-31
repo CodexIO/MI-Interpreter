@@ -17,9 +17,9 @@ public class ImmediateOperand implements Operand {
         if (number >= 0 && number <= 63) return new byte[]{ (byte) number };
 
         byte op = (byte) 0x8F;
-        byte b1 = (byte) (number >> 24);
-        byte b2 = (byte) (number >> 16);
-        byte b3 = (byte) (number >> 8);
+        byte b1 = (byte) (number >>> 24);
+        byte b2 = (byte) (number >>> 16);
+        byte b3 = (byte) (number >>> 8);
         byte b4 = (byte) (number & 0xFF);
 
         return switch (size) {

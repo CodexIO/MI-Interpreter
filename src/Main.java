@@ -6,14 +6,18 @@ import Assembler.Token;
 public class Main {
 
     public static void main(String[] args) {
-        Lexer lx = new Lexer("ADD B I 1, I 2, R0\n ADD B I 10, I 0, 7 + !R0");
+        Lexer lx = new Lexer("ADD B I 1, I 2, R0\nADD B I 10, I 0, 7 + !R0 ");
 
         Parser parser = new Parser(lx);
 
         parser.parse();
         var machineCode = parser.generateMachineCode();
 
-        System.out.println(machineCode);
+        StringBuilder sb = new StringBuilder();
+        for(byte b : machineCode) {
+            sb.append(String.format("%02X ", b & 0xFF));
+        }
+        System.out.println(sb);
 
         byte[] bytes = new byte[machineCode.size()];
         int i = 0;

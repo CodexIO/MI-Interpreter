@@ -22,7 +22,7 @@ public class AST_Add extends Command {
 
     @Override
     public byte getOpCode() {
-        return (byte)0xC4; //TODO Generate the right OpCode here
+        return (byte) op.opcode; //TODO Generate the right OpCode here
     }
 
     @Override
