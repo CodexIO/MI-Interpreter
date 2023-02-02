@@ -51,7 +51,7 @@ public class InterpreterTests {
         assertEquals(3, vm.registers[1]);
         assertEquals(2, vm.registers[2]);
 
-        assertEquals(15, vm.memory[0x40]);
+        assertEquals(15, vm.getMemory()[0x40]);
     }
 
     @Test

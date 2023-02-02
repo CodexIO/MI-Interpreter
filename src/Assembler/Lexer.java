@@ -68,12 +68,20 @@ public class Lexer {
         return new Token(row, col, lexeme, type);
     }
 
+    private boolean isKeyword(String s) {
+        for (OpCode op : OpCode.values()) {
+            String name = op.name;
+            if (s.equals(name)) return true;
+        }
+        return false;
+    }
+
     private Token lexKeywordOrIdentifier() {
         while (Character.isAlphabetic(peek()) || Character.isDigit(peek())) advance();
 
         Token tk = newToken(Type.IDENTIFIER);
 
-        if(tk.lexeme.equals("ADD")) tk.type = Type.KEYWORD;
+        if(isKeyword(tk.lexeme)) tk.type = Type.KEYWORD;
         // TODO: Check if the Token is a Keyword.
 
         return tk;

@@ -5,20 +5,24 @@ import Assembler.AST_Nodes.*;
 import java.util.ArrayList;
 import java.util.Dictionary;
 
+import static Assembler.OpCode.DataType.*;
 import static Assembler.Token.Type.*;
 
 public class Parser {
 
     private Lexer lx;
     private ArrayList<Token> tokens;
-    private ArrayList<Command> commands;
+    private ArrayList<Command> commands = new ArrayList<>();
     private Dictionary<String, Integer> labelAdresses;
 
     private int currentAddress = 0;
 
+    public Parser(String input) {
+        lx = new Lexer(input);
+    }
+
     public Parser(Lexer lexer) {
         lx = lexer;
-        commands = new ArrayList<Command>();
     }
 
     private void eat(Token.Type type) {
@@ -36,17 +40,30 @@ public class Parser {
         return false;
     }
 
-    public ArrayList<Byte> generateMachineCode() {
+    public byte[] generateMachineCode() {
         System.out.println("Generating MachineCode for the input:\n" + lx.source);
         ArrayList<Byte> code = new ArrayList<>();
         for(Command cmd : commands) {
             //TODO: Do i want to use ArrayList instead of byte[] everywhere?
+            //TODO: Probably not, i think i can figure out the size beforehand and just use byte[]
             byte[] bytes = cmd.generateMachineCode();
             for(byte b : bytes) {
                 code.add(b);
             }
         }
-        return code;
+
+        StringBuilder sb = new StringBuilder();
+        for(byte b : code) {
+            sb.append(String.format("%02X ", b & 0xFF));
+        }
+        System.out.println(sb);
+
+        byte[] bytes = new byte[code.size()];
+        int i = 0;
+        for (Byte b : code) {
+            bytes[i++] = b;
+        }
+        return bytes;
     }
 
     public void parse() {
@@ -65,7 +82,12 @@ public class Parser {
 
         //TODO @Speed This String comparisons are probably slow.
         Command cmd = switch (command.lexeme) {
+            case "MOVE" -> parseCommand(command);
+            case "MOVEA" -> parseMOVEA(command);
             case "ADD" -> parseCommand(command);
+            case "SUB" -> parseCommand(command);
+            case "MULT" -> parseCommand(command);
+            case "DIV" -> parseCommand(command);
 
             default -> null;
         };
@@ -75,6 +97,7 @@ public class Parser {
 
     private Command parseCommand(Token command) {
         int address = currentAddress;
+
         Token tk = lx.nextToken();
         //TODO: Check if tk is really a size indicator
         OpCode.DataType size = switch (tk.lexeme) {
@@ -83,7 +106,7 @@ public class Parser {
             case "W" -> OpCode.DataType.WORD;
             case "F" -> OpCode.DataType.FLOAT;
             case "D" -> OpCode.DataType.DOUBLE;
-            default -> OpCode.DataType.NONE;
+            default -> NONE;
         };
 
         //TODO: Check if operands are really always
@@ -108,6 +131,27 @@ public class Parser {
         //TODO: Think of a convenient way to keep track of current line and row
         //TODO:                                      |
         return new AST_Add(op, command.row, address, command.col, -1, a1, a2, a3);
+    }
+
+    private Command parseMOVEA(Token command) {
+        int address = currentAddress;
+
+
+        //TODO: Check if operands are really always
+        //TODO  2 or 3... Probably not
+        int operands = 2;
+
+        Operand a1 = parseOperand(WORD);
+        eat(COMMA);
+
+        Operand a2 = parseOperand(WORD);
+
+        OpCode op = OpCode.getOpCode(command.lexeme, WORD, operands);
+
+
+        //TODO: Think of a convenient way to keep track of current line and row
+        //TODO:                                      |
+        return new AST_Add(op, command.row, address, command.col, -1, a1, a2, null);
     }
 
     private Operand parseOperand(OpCode.DataType size) {

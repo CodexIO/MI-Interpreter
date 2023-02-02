@@ -1,17 +1,20 @@
 import Assembler.Interpreter.VirtualMachine;
 import Assembler.Lexer;
 import Assembler.Parser;
-import Assembler.Token;
 
 public class Main {
 
     public static void main(String[] args) {
-        Lexer lx = new Lexer("ADD B I 1, I 2, R0\nADD B I 10, I 0, 7 + !R0 ");
+        String input = """
+                SUB B I 5, I 10, R1
+                ADD B I 1, I 2, R0
+                ADD B I 10, I 0, 7 + !R0""";
+        Lexer lx = new Lexer(input);
 
         Parser parser = new Parser(lx);
 
         parser.parse();
-        var machineCode = parser.generateMachineCode();
+        byte[] machineCode = parser.generateMachineCode();
 
         StringBuilder sb = new StringBuilder();
         for(byte b : machineCode) {
@@ -19,13 +22,7 @@ public class Main {
         }
         System.out.println(sb);
 
-        byte[] bytes = new byte[machineCode.size()];
-        int i = 0;
-        for (Byte b : machineCode) {
-            bytes[i++] = b;
-        }
-
-        VirtualMachine vm = new VirtualMachine(bytes);
+        VirtualMachine vm = new VirtualMachine(machineCode);
         vm.run();
         System.out.println(vm);
 

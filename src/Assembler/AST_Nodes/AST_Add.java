@@ -3,6 +3,9 @@ package Assembler.AST_Nodes;
 import Assembler.OpCode;
 
 //TODO: Currently we'll only support Integers, maybe later we'll make the Command Generic?
+//TODO: We'll also use this class for every command at the moment,
+//TODO: because there doesn'T seem to be an obvious difference while generating code.
+
 public class AST_Add extends Command {
 
     Operand a1, a2, a3;
@@ -29,8 +32,6 @@ public class AST_Add extends Command {
     public byte[] generateMachineCode() {
         int size = 1 + a1.size() + a2.size() + (three ? a3.size() : 0);
         byte[] result = new byte[size];
-
-        ImmediateOperand im = (ImmediateOperand) a1;
 
         int i = 0;
         result[i++] = getOpCode();

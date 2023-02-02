@@ -43,10 +43,10 @@ public class VirtualMachine {
     // Condition Codes / Flags
     private boolean C, Z, N, V;
 
-    public final byte[] memory = new byte[MEMORY_LENGTH];
+    private byte[] memory = new byte[MEMORY_LENGTH];
     private final ArrayList<Integer> changedMemory = new ArrayList<>();
 
-    public final int[] registers = new int[NUMBER_OF_REGISTERS]; //TODO: Make registers private again with proper testing
+    public int[] registers = new int[NUMBER_OF_REGISTERS]; //TODO: Make registers private again with proper testing
     private final boolean[] registersChanged = new boolean[NUMBER_OF_REGISTERS];
 
     private boolean programHaltet;
@@ -65,6 +65,10 @@ public class VirtualMachine {
         this(0, memory);
     }
 
+    public VirtualMachine() {
+        this(0, new byte[]{});
+    }
+
     public VirtualMachine(byte[] memory, int[] registers) {
         this(memory);
         System.arraycopy(registers, 0, this.registers, 0, registers.length);
@@ -74,7 +78,7 @@ public class VirtualMachine {
     public String toString() {
         StringBuilder sb = new StringBuilder();
         int lastNonZeroByteIndex = memory.length -1;
-        while (memory[lastNonZeroByteIndex] == 0) lastNonZeroByteIndex--;
+        while (memory[lastNonZeroByteIndex] == 0 && lastNonZeroByteIndex != 0) lastNonZeroByteIndex--;
         for (int i = 0; i <= lastNonZeroByteIndex; i++) {
             if (i % 8 == 0) {
                 sb.append("\n|");
@@ -89,7 +93,7 @@ public class VirtualMachine {
                 ", Z=" + Z +
                 ", N=" + N +
                 ", V=" + V + "\n" +
-                "  memory: {" + sb.toString() + "\n}\n" +
+                "  memory: {" + sb + "\n}\n" +
                 "  registers=" + Arrays.toString(registers) + "\n" +
                 '}';
     }
@@ -98,7 +102,25 @@ public class VirtualMachine {
         assert(size == BYTE_SIZE || size == HALFWORD_SIZE || size == WORD_SIZE);
     }
 
+    public void reset() {
+        V = N = Z = C = false;
+        int i = 0;
+        while (i < memory.length) {
+            memory[i++] = 0;
+        }
+        registers = new int[NUMBER_OF_REGISTERS];
+        programHaltet = false;
+    }
+
     //region Getter and Setter
+    public byte[] getMemory() {
+        return memory;
+    }
+
+    public void setMemory(byte[] mem) {
+        System.arraycopy(mem, 0, memory, 0, mem.length);
+    }
+
     public int getPC(int size) {
         return getRegister(PC_REGISTER, size);
     }
@@ -147,6 +169,7 @@ public class VirtualMachine {
     }
 
     private int getByte(int address) {
+        if (address >= memory.length) return 0;
         byte result = memory[address];
         return (result & 0xFF);
     }
@@ -193,8 +216,8 @@ public class VirtualMachine {
     }
 
     private void setHalfword(int address, int number) {
-        setByte(address++, number);
-        setByte(address, number >>> 4);
+        setByte(address, number);
+        setByte(address + 1, number >>> 4);
     }
 
     private int getNextWord() {
@@ -211,7 +234,7 @@ public class VirtualMachine {
 
     private void setWord(int address, int number) {
         setHalfword(address, number);
-        setHalfword(address, number >>> 8);
+        setHalfword(address + 2, number >>> 8);
     }
 
     // Only use this for 1, 2 or 4 Bytes
@@ -231,6 +254,7 @@ public class VirtualMachine {
         return result;
     }
 
+    //TODO: CHECK IF getMemory and setMemory use the correct Endianness.
     // Only use this for 1, 2 or 4 Bytes
     private void setMemory(int address, int size, int result) {
         checkSize(size);
@@ -264,6 +288,49 @@ public class VirtualMachine {
         return getAddress(address1);
     }
 
+    private int computeAddress(int addressType, int reg, int operandSize) {
+        switch (addressType) {
+            // Relative Addressing a + !Rx, where a = 0
+            case AddressType.RELATIVE_ADDRESSING_WITH_ZERO: {
+                return getRegister(reg, operandSize);
+            }
+            // Absolute Addressing
+            case AddressType.ABSOLUT_ADDRESS: {
+                // Since we only need b here for a check that should always be true
+                // we won't pass it to the Function at the Moment
+                //assert((b & 0x0F) == 15); //Not sure why the rest of the byte has to be 15
+
+                return getNextWord();
+            }
+            // Relative Addressing a + !Rx, where a fits into one byte
+            case AddressType.RELATIVE_ADDRESSING_WITH_BYTE: {
+                return computeRelativeAddressing(reg, BYTE_SIZE);
+            }
+            // Relative Addressing a + !Rx, where a fits into two byte
+            case AddressType.RELATIVE_ADDRESSING_WITH_HALFWORD: {
+                return computeRelativeAddressing(reg, HALFWORD_SIZE);
+            }
+            case AddressType.RELATIVE_ADDRESSING_WITH_WORD: {
+                return computeRelativeAddressing(reg, WORD_SIZE);
+            }
+            case AddressType.INDICATED_RELATIVE_ADDRESSING: {
+                //TODO: Implement me
+            } break;
+            case AddressType.INDIRECT_ADDRESSING_WITH_BYTE: {
+                return computeIndirectAddressing(reg, BYTE_SIZE);
+            }
+            case AddressType.INDIRECT_ADDRESSING_WITH_HALFWORD: {
+                return computeIndirectAddressing(reg, HALFWORD_SIZE);
+            }
+            case AddressType.INDIRECT_ADDRESSING_WITH_WORD: {
+                return computeIndirectAddressing(reg, WORD_SIZE);
+            }
+            default: assert(false);
+        }
+        //TODO: ERROR HERE
+        return -1;
+    }
+
     private int getNextOperand(int operandSize) {
         int b = getNextByte();
 
@@ -271,82 +338,63 @@ public class VirtualMachine {
         int addressType = b >>> 4;
         if (addressType < 4) addressType = 0; // We do this so we only have to use one case statement for every direct Operand Case
 
-        int result = 0;
+        int address = -1;
 
         switch (addressType) {
             // Direct Operand between 0 and 63
             case AddressType.SMALL_DIRECT_OPERAND: {
-                result = (b & 0x3F);
-            } break;
+                return (b & 0x3F);
+            }
             // Register Addressing
             case AddressType.REGISTER_ADDRESSING: {
-                result = getRegister(reg, operandSize);
-            } break;
-            // Relative Addressing a + !Rx, where a = 0
-            case AddressType.RELATIVE_ADDRESSING_WITH_ZERO: {
-                int reg_value = getRegister(reg, operandSize);
-                result = getMemory(reg_value, operandSize);
-            } break;
-            // Stack Addressing by -!Rx
+                return getRegister(reg, operandSize);
+            }
+            case AddressType.RELATIVE_ADDRESSING_WITH_ZERO:
             case AddressType.STACK_ADDRESSING_WITH_MINUS: {
-                int address = computeStackAddressingWithMinus(reg, operandSize);
-                result = getMemory(address, operandSize);
+                address = computeAddress(addressType, reg, operandSize);
             } break;
             case AddressType.BIG_DIRECT_OPERAND_OR_STACK_ADDRESSING_WITH_PLUS: {
                 // Direct Operand bigger than 63
                 if (reg == 15) {
+                    int result = 0;
                     for (int i = 0; i < operandSize; i++) {
                         int op = getNextByte();
                         result = (result << 8) + op;
                     }
+                    return result;
                 }
                 // Stack Addressing by !Rx+
                 else {
-                    int address = getRegister(reg);
-                    result = getMemory(address, operandSize);
+                    address = getRegister(reg);
+                    int result = getMemory(address, operandSize);
                     setRegister(reg, WORD_SIZE, address + operandSize);
-                } break;
+                    return result;
+                }
             }
             // Absolute Addressing
             case AddressType.ABSOLUT_ADDRESS: {
                 assert((b & 0x0F) == 15); //Not sure why the rest of the byte has to be 15
-
-                int address = getNextWord();
-                result = getMemory(address, operandSize);
+                address = computeAddress(addressType, reg, operandSize);
             } break;
-            // Relative Addressing a + !Rx, where a fits into one byte
-            case AddressType.RELATIVE_ADDRESSING_WITH_BYTE: {
-                int address = computeRelativeAddressing(reg, BYTE_SIZE);
-                result = getMemory(address, operandSize);
+            case AddressType.RELATIVE_ADDRESSING_WITH_BYTE:
+            case AddressType.INDIRECT_ADDRESSING_WITH_BYTE: {
+                address = computeAddress(addressType, reg, BYTE_SIZE);
             } break;
-            // Relative Addressing a + !Rx, where a fits into two byte
-            case AddressType.RELATIVE_ADDRESSING_WITH_HALFWORD: {
-                int address = computeRelativeAddressing(reg, HALFWORD_SIZE);
-                result = getMemory(address, operandSize);
+            case AddressType.RELATIVE_ADDRESSING_WITH_HALFWORD:
+            case AddressType.INDIRECT_ADDRESSING_WITH_HALFWORD: {
+                address = computeAddress(addressType, reg, HALFWORD_SIZE);
             } break;
-            case AddressType.RELATIVE_ADDRESSING_WITH_WORD: {
-                int address = computeRelativeAddressing(reg, WORD_SIZE);
-                result = getMemory(address, operandSize);
+            case AddressType.RELATIVE_ADDRESSING_WITH_WORD:
+            case AddressType.INDIRECT_ADDRESSING_WITH_WORD: {
+                address = computeAddress(addressType, reg, WORD_SIZE);
             } break;
             case AddressType.INDICATED_RELATIVE_ADDRESSING: {
                 //TODO: Implement me
             } break;
-            case AddressType.INDIRECT_ADDRESSING_WITH_BYTE: {
-                int address = computeIndirectAddressing(reg, BYTE_SIZE);
-                result = getMemory(address, operandSize);
-            } break;
-            case AddressType.INDIRECT_ADDRESSING_WITH_HALFWORD: {
-                int address = computeIndirectAddressing(reg, HALFWORD_SIZE);
-                result = getMemory(address, operandSize);
-            } break;
-            case AddressType.INDIRECT_ADDRESSING_WITH_WORD: {
-                int address = computeIndirectAddressing(reg, WORD_SIZE);
-                result = getMemory(address, operandSize);
-            } break;
             default: assert(false);
         }
 
-        return result;
+        return getMemory(address, operandSize);
     }
 
     private void saveResult(int result, int operandSize) {
@@ -417,46 +465,150 @@ public class VirtualMachine {
     public void executeOneInstruction() {
         int opcode = getNextByte();
 
-        switch(OpCode.find(opcode)) {
-            case HALT: halt(); break;
+        OpCode op = OpCode.find(opcode);
+        switch(op) {
+            case HALT -> halt();
 
-            case CMP_B: cmp_I(BYTE_SIZE); break;
-            case CMP_H: cmp_I(HALFWORD_SIZE); break;
-            case CMP_W: cmp_I(WORD_SIZE); break;
+            case CMP_B -> cmp_I(BYTE_SIZE);
+            case CMP_H -> cmp_I(HALFWORD_SIZE);
+            case CMP_W -> cmp_I(WORD_SIZE);
 
-            case CLEAR_B: clear(BYTE_SIZE); break;
-            case CLEAR_H: clear(HALFWORD_SIZE); break;
-            case CLEAR_W: clear(WORD_SIZE); break;
-            case CLEAR_F: clear(FLOAT_SIZE); break;
-            case CLEAR_D: clear(DOUBLE_SIZE); break;//TODO: Check if 8 Byte work
+            case CMP_F -> {
+            }
+            case CMP_D -> {
+            }
+            case CLEAR_B -> clear(BYTE_SIZE);
+            case CLEAR_H -> clear(HALFWORD_SIZE);
+            case CLEAR_W -> clear(WORD_SIZE);
+            case CLEAR_F -> clear(FLOAT_SIZE);
+            case CLEAR_D -> clear(DOUBLE_SIZE);//TODO: Check if 8 Byte work
 
-            case MOVE_B: move(BYTE_SIZE); break;
-            case MOVE_H: move(HALFWORD_SIZE); break;
-            case MOVE_W: move(WORD_SIZE); break;
+            case MOVE_B -> move(BYTE_SIZE);
+            case MOVE_H -> move(HALFWORD_SIZE);
+            case MOVE_W -> move(WORD_SIZE);
 
-            case MOVEN_B: moven_I(BYTE_SIZE); break;
-            case MOVEN_H: moven_I(HALFWORD_SIZE); break;
-            case MOVEN_W: moven_I(WORD_SIZE); break;
+            case MOVE_F -> {
+            }
+            case MOVE_D -> {
+            }
+            case MOVEN_B -> moven_I(BYTE_SIZE);
+            case MOVEN_H -> moven_I(HALFWORD_SIZE);
+            case MOVEN_W -> moven_I(WORD_SIZE);
 
-            case MOVEC_B: movec(BYTE_SIZE); break;
-            case MOVEC_H: movec(HALFWORD_SIZE); break;
-            case MOVEC_W: movec(WORD_SIZE); break;
+            case MOVEN_F -> {
+            }
+            case MOVEN_D -> {
+            }
+            case MOVEC_B -> movec(BYTE_SIZE);
+            case MOVEC_H -> movec(HALFWORD_SIZE);
+            case MOVEC_W -> movec(WORD_SIZE);
 
-            case OR_B2: or_2(BYTE_SIZE); break;
-            case OR_H2: or_2(HALFWORD_SIZE); break;
-            case OR_W2: or_2(WORD_SIZE); break;
-            case OR_B3: or_3(BYTE_SIZE); break;
-            case OR_H3: or_3(HALFWORD_SIZE); break;
-            case OR_W3: or_3(WORD_SIZE); break;
+            case MOVEA -> movea();
+            case OR_B2 -> or_2(BYTE_SIZE);
+            case OR_H2 -> or_2(HALFWORD_SIZE);
+            case OR_W2 -> or_2(WORD_SIZE);
+            case OR_B3 -> or_3(BYTE_SIZE);
+            case OR_H3 -> or_3(HALFWORD_SIZE);
+            case OR_W3 -> or_3(WORD_SIZE);
 
-            case ANDNOT_B2: andnot_2(BYTE_SIZE); break;
+            case ANDNOT_B2 -> andnot_2(BYTE_SIZE);
+            case ANDNOT_H2 -> HOW_TO_NAME_THIS(HALFWORD_SIZE, Operation.ANDNOT, true);
+            case ANDNOT_W2 -> HOW_TO_NAME_THIS(WORD_SIZE, Operation.ANDNOT, true);
 
-            case ADD_B2: HOW_TO_NAME_THIS(BYTE_SIZE, Operation.ADD, true); break;
-            case ADD_H2: add_h2(); break;
-            case ADD_W2: add_w2(); break;
-            case ADD_B3: add_b3(); break;
+            case ANDNOT_B3 -> HOW_TO_NAME_THIS(BYTE_SIZE, Operation.ANDNOT, false);
+            case ANDNOT_H3 -> HOW_TO_NAME_THIS(HALFWORD_SIZE, Operation.ANDNOT, false);
+            case ANDNOT_W3 -> HOW_TO_NAME_THIS(WORD_SIZE, Operation.ANDNOT, false);
 
-            case SUB_B2: sub_b2();
+            case XOR_B2 -> HOW_TO_NAME_THIS(BYTE_SIZE, Operation.XOR, true);
+            case XOR_H2 -> HOW_TO_NAME_THIS(HALFWORD_SIZE, Operation.XOR, true);
+            case XOR_W2 -> HOW_TO_NAME_THIS(WORD_SIZE, Operation.XOR, true);
+            case XOR_B3 -> HOW_TO_NAME_THIS(BYTE_SIZE, Operation.XOR, false);
+            case XOR_H3 -> HOW_TO_NAME_THIS(HALFWORD_SIZE, Operation.XOR, false);
+            case XOR_W3 -> HOW_TO_NAME_THIS(WORD_SIZE, Operation.XOR, false);
+
+            case ADD_B2 -> HOW_TO_NAME_THIS(BYTE_SIZE, Operation.ADD, true);
+            case ADD_H2 -> add_h2(); //TODO: @Cleanup make everything use the same Function
+            case ADD_W2 -> add_w2();
+            case ADD_F2 -> {
+            }
+            case ADD_D2 -> {
+            }
+            case ADD_B3 -> add_b3();
+            case ADD_H3 -> HOW_TO_NAME_THIS(HALFWORD_SIZE, Operation.ADD, false);
+            case ADD_W3 -> HOW_TO_NAME_THIS(WORD_SIZE, Operation.ADD, false);
+            case ADD_F3 -> {
+            }
+            case ADD_D3 -> {
+            }
+            case SUB_B2 -> sub_b2();
+            case SUB_H2 -> HOW_TO_NAME_THIS(HALFWORD_SIZE, Operation.SUB, true);
+            case SUB_W2 -> HOW_TO_NAME_THIS(WORD_SIZE, Operation.SUB, true);
+            case SUB_F2 -> {
+            }
+            case SUB_D2 -> {
+            }
+            case SUB_B3 -> HOW_TO_NAME_THIS(BYTE_SIZE, Operation.SUB, false);
+            case SUB_H3 -> HOW_TO_NAME_THIS(HALFWORD_SIZE, Operation.SUB, false);
+            case SUB_W3 -> HOW_TO_NAME_THIS(WORD_SIZE, Operation.SUB, false);
+            case SUB_F3 -> {
+            }
+            case SUB_D3 -> {
+            }
+
+            case MULT_B2 -> HOW_TO_NAME_THIS(BYTE_SIZE, Operation.MULT, true);
+            case MULT_H2 -> HOW_TO_NAME_THIS(HALFWORD_SIZE, Operation.MULT, true);
+            case MULT_W2 -> HOW_TO_NAME_THIS(WORD_SIZE, Operation.MULT, true);
+            case MULT_F2 -> {
+            }
+            case MULT_D2 -> {
+            }
+            case MULT_B3 -> HOW_TO_NAME_THIS(BYTE_SIZE, Operation.MULT, false);
+            case MULT_H3 -> HOW_TO_NAME_THIS(HALFWORD_SIZE, Operation.MULT, false);
+            case MULT_W3 -> HOW_TO_NAME_THIS(WORD_SIZE, Operation.MULT, false);
+            case MULT_F3 -> {
+            }
+            case MULT_D3 -> {
+            }
+            case DIV_B2 -> HOW_TO_NAME_THIS(BYTE_SIZE, Operation.DIV, true);
+            case DIV_H2 -> HOW_TO_NAME_THIS(HALFWORD_SIZE, Operation.DIV, true);
+            case DIV_W2 -> HOW_TO_NAME_THIS(WORD_SIZE, Operation.DIV, true);
+            case DIV_F2 -> {
+            }
+            case DIV_D2 -> {
+            }
+            case DIV_B3 -> HOW_TO_NAME_THIS(BYTE_SIZE, Operation.DIV, false);
+            case DIV_H3 -> HOW_TO_NAME_THIS(HALFWORD_SIZE, Operation.DIV, false);
+            case DIV_W3 -> HOW_TO_NAME_THIS(WORD_SIZE, Operation.DIV, false);
+            case DIV_F3 -> {
+            }
+            case DIV_D3 -> {
+            }
+            case JEQ -> {
+            }
+            case JNE -> {
+            }
+            case JGT -> {
+            }
+            case JGE -> {
+            }
+            case JLT -> {
+            }
+            case JLE -> {
+            }
+            case JC -> {
+            }
+            case JNC -> {
+            }
+            case JUMP -> {
+            }
+            case CALL -> {
+            }
+            case RET -> {
+            }
+            case PUSHR -> {
+            }
+            case POPR -> {
+            }
         }
     }
 
@@ -522,8 +674,15 @@ public class VirtualMachine {
 
     public void movea() {
         //TODO: This is not the same as move. Figure out how to do this
-        //int a1 = getNextOperand(WORD_SIZE);
-        //saveResult(a1, WORD_SIZE);
+        int b = getNextByte();
+
+        int reg = (b & 0x0F);
+        int addressType = b >>> 4;
+        if (addressType < 4) addressType = 0;
+
+        int address = computeAddress(addressType, reg, WORD_SIZE);
+
+        saveResult(address, WORD_SIZE);
     }
 
     public void HOW_TO_NAME_THIS(int size, Operation op, boolean twoOperands) {
