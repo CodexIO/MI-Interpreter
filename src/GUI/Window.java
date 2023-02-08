@@ -5,48 +5,48 @@ import Assembler.Interpreter.VirtualMachine;
 import Assembler.Parser;
 
 import javax.swing.*;
+import javax.swing.border.LineBorder;
+import java.awt.*;
 import java.io.*;
 import java.awt.event.*;
 
 class Window extends JFrame implements ActionListener {
 
+    private static final int WINDOW_WIDTH = 900;
+    private static final int WINDOW_HEIGHT = 800;
+
     VirtualMachine vm = new VirtualMachine();
 
-    JPanel textPanel;
+    private final ButtonPanel buttonPanel = new ButtonPanel(this);
+    private final RegisterPanel registerPanel = new RegisterPanel(vm);
+    private final MemoryPanel memoryPanel = new MemoryPanel(vm);
+    private final FlagsPanel flagPanel = new FlagsPanel();
 
-    // Text component
-    JTextArea inputTextArea;
+    //These are used to divide the different Views we want to render
+    private final JPanel upperPanel = new JPanel();
+    private final JPanel centerPanel = new JPanel();
+    private final JPanel lowerPanel = new JPanel();
 
-    // Output ocmponent
-    JTextArea outputTextArea;
+    private final TextEditorPane editorPane = new TextEditorPane();
+    private final JTextPane notificationPane = new JTextPane();
 
-    // Frame
-    JFrame frame;
+    private final JPanel mainPanel = new JPanel();
+
 
     // Constructor
     Window()
     {
-        // Create a frame
-        frame = new JFrame("MI-Interpreter");
+        setTitle("MI-Interpreter");
+        setDefaultCloseOperation(EXIT_ON_CLOSE);
 
-        /*try {
-            // Set metal look and feel
-            UIManager.setLookAndFeel("javax.swing.plaf.metal.MetalLookAndFeel");
+        initGUI();
+        initMenuBar();
 
-            // Set theme to ocean
-            MetalLookAndFeel.setCurrentTheme(new OceanTheme());
-        }
-        catch (Exception e) {
-        }*/
+        setSize(WINDOW_WIDTH, WINDOW_HEIGHT);
+        setVisible(true);
+    }
 
-        textPanel = new JPanel();
-
-        // Text component
-        inputTextArea = new JTextArea();
-        inputTextArea.setText("ADD B I 5, I 3, R0");
-        outputTextArea = new JTextArea();
-        outputTextArea.setText("OUTPUT");
-
+    private void initMenuBar() {
         // Create a menubar
         JMenuBar mb = new JMenuBar();
 
@@ -98,33 +98,74 @@ class Window extends JFrame implements ActionListener {
         mb.add(mc);
         mb.add(runButton);
 
-        textPanel.setLayout(new BoxLayout(textPanel, BoxLayout.Y_AXIS));
-        textPanel.add(inputTextArea);
-        textPanel.add(outputTextArea);
+        setJMenuBar(mb);
+    }
 
-        frame.setJMenuBar(mb);
-        frame.add(textPanel);
-        frame.setSize(500, 500);
-        frame.setVisible(true);
+    private void initGUI() {
+        mainPanel.setLayout(new BoxLayout(mainPanel, BoxLayout.Y_AXIS));
+        mainPanel.add(upperPanel);
+        mainPanel.add(centerPanel);
+        mainPanel.add(lowerPanel);
 
-        this.setDefaultCloseOperation(EXIT_ON_CLOSE);
+        upperPanel.add(buttonPanel);
+        upperPanel.setBorder(new LineBorder(Color.black));
+
+        centerPanel.setLayout(new BoxLayout(centerPanel, BoxLayout.X_AXIS));
+        centerPanel.setBorder(new LineBorder(Color.black));
+        centerPanel.add(registerPanel);
+        centerPanel.add(editorPane);
+        centerPanel.add(memoryPanel);
+
+        lowerPanel.add(notificationPane);
+        lowerPanel.setBorder(new LineBorder(Color.black));
+
+        add(mainPanel);
+
+        editorPane.setText("ADD B I 5, I 5, R0");
     }
 
     // If a button is pressed
     public void actionPerformed(ActionEvent e)
     {
+        Object src = e.getSource();
+
+        if (src == buttonPanel.assemble) {
+            Parser parser = new Parser(editorPane.getText());
+            parser.parse();
+            vm.reset();
+            vm.setMemory(parser.generateMachineCode());
+
+            updateVmState();
+            buttonPanel.run.setEnabled(true);
+        } else if (src == buttonPanel.run) {
+            vm.reset();
+            vm.run();
+
+            updateVmState();
+            buttonPanel.run.setEnabled(false);
+        } else if (src == buttonPanel.debug) {
+            //TODO: Implement Debugging
+        } else if (src == buttonPanel.step) {
+
+        } else if (src == buttonPanel.stop) {
+
+        } else if (src == buttonPanel.restart) {
+
+        } else {
+            evalMenuBar(e);
+        }
+    }
+
+    private void updateVmState() {
+        registerPanel.update();
+        memoryPanel.renderMemory();
+        notificationPane.setText(vm.toString());
+    }
+
+    private void evalMenuBar(ActionEvent e) {
         String s = e.getActionCommand();
 
         switch (s) {
-            case "cut":
-                inputTextArea.cut();
-                break;
-            case "copy":
-                inputTextArea.copy();
-                break;
-            case "paste":
-                inputTextArea.paste();
-                break;
             case "Save": {
                 // Create an object of JFileChooser class
                 JFileChooser j = new JFileChooser("f:");
@@ -137,33 +178,33 @@ class Window extends JFrame implements ActionListener {
                     // Set the label to the path of the selected directory
                     File fi = new File(j.getSelectedFile().getAbsolutePath());
 
-                    try {
+                    try (FileWriter wr = new FileWriter(fi, false)){
                         // Create a file writer
-                        FileWriter wr = new FileWriter(fi, false);
+                        BufferedWriter w;
 
                         // Create buffered writer to write
-                        BufferedWriter w = new BufferedWriter(wr);
+                        w = new BufferedWriter(wr);
 
                         // Write
-                        w.write(inputTextArea.getText());
+                        w.write(editorPane.getText());
 
                         w.flush();
                         w.close();
                     } catch (Exception evt) {
-                        JOptionPane.showMessageDialog(frame, evt.getMessage());
+                        JOptionPane.showMessageDialog(this, evt.getMessage());
                     }
                 }
                 // If the user cancelled the operation
                 else
-                    JOptionPane.showMessageDialog(frame, "the user cancelled the operation");
+                    JOptionPane.showMessageDialog(this, "the user cancelled the operation");
                 break;
             }
             case "Print":
                 try {
                     // print the file
-                    inputTextArea.print();
+                    editorPane.print();
                 } catch (Exception evt) {
-                    JOptionPane.showMessageDialog(frame, evt.getMessage());
+                    JOptionPane.showMessageDialog(this, evt.getMessage());
                 }
                 break;
             case "Open": {
@@ -178,45 +219,50 @@ class Window extends JFrame implements ActionListener {
                     // Set the label to the path of the selected directory
                     File fi = new File(j.getSelectedFile().getAbsolutePath());
 
-                    try {
-                        // String
-                        String s1 = "", sl = "";
+                    try (FileReader fr = new FileReader(fi)){
+                        StringBuilder sb = new StringBuilder();
+                        String s1;
 
                         // File reader
-                        FileReader fr = new FileReader(fi);
+                        BufferedReader br;
 
                         // Buffered reader
-                        BufferedReader br = new BufferedReader(fr);
+                        br = new BufferedReader(fr);
 
                         // Initialize sl
-                        sl = br.readLine();
+                        sb.append(br.readLine());
 
                         // Take the input from the file
                         while ((s1 = br.readLine()) != null) {
-                            sl = sl + "\n" + s1;
+                            sb.append("\n");
+                            sb.append(s1);
                         }
 
                         // Set the text
-                        inputTextArea.setText(sl);
+                        editorPane.setText(sb.toString());
                     } catch (Exception evt) {
-                        JOptionPane.showMessageDialog(frame, evt.getMessage());
+                        JOptionPane.showMessageDialog(this, evt.getMessage());
                     }
                 }
                 // If the user cancelled the operation
                 else
-                    JOptionPane.showMessageDialog(frame, "the user cancelled the operation");
+                    JOptionPane.showMessageDialog(this, "the user cancelled the operation");
                 break;
             }
             case "New":
-                inputTextArea.setText("");
+                editorPane.setText("");
                 break;
             case "Run":
-                Parser parser = new Parser(inputTextArea.getText());
+                Parser parser = new Parser(editorPane.getText());
                 parser.parse();
                 vm.reset();
                 vm.setMemory(parser.generateMachineCode());
                 vm.run();
-                outputTextArea.setText(vm.toString());
+                notificationPane.setText(vm.toString());
+
+                registerPanel.update();
+                memoryPanel.renderMemory();
+
                 break;
             case "close":
                 System.exit(0);

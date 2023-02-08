@@ -102,12 +102,9 @@ public class VirtualMachine {
         assert(size == BYTE_SIZE || size == HALFWORD_SIZE || size == WORD_SIZE);
     }
 
+    // Resets the State of the VM, so it can run again
     public void reset() {
         V = N = Z = C = false;
-        int i = 0;
-        while (i < memory.length) {
-            memory[i++] = 0;
-        }
         registers = new int[NUMBER_OF_REGISTERS];
         programHaltet = false;
     }
@@ -467,7 +464,10 @@ public class VirtualMachine {
 
         OpCode op = OpCode.find(opcode);
         switch(op) {
-            case HALT -> halt();
+            case HALT -> {
+                decPC(); //We do this because getNextByte() automatically increments the PC
+                halt();
+            }
 
             case CMP_B -> cmp_I(BYTE_SIZE);
             case CMP_H -> cmp_I(HALFWORD_SIZE);
