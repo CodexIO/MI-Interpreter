@@ -115,6 +115,7 @@ public class VirtualMachine {
     }
 
     public void setMemory(byte[] mem) {
+        Arrays.fill(memory, (byte) 0);
         System.arraycopy(mem, 0, memory, 0, mem.length);
     }
 
@@ -202,36 +203,36 @@ public class VirtualMachine {
 
     private int getNextHalfword() {
         int a = getNextByte();
-        a = (a << 4) + getNextByte();
+        a = (a << 8) + getNextByte();
         return a;
     }
 
     private int getHalfword(int address) {
         int a = getByte(address);
-        a = (a << 4) + getByte(address);
+        a = (a << 8) + getByte(address + 1);
         return a;
     }
 
     private void setHalfword(int address, int number) {
-        setByte(address, number);
-        setByte(address + 1, number >>> 4);
+        setByte(address, number >>> 8);
+        setByte(address + 1, number);
     }
 
     private int getNextWord() {
         int a = getNextHalfword();
-        a = (a << 8) + getNextHalfword();
+        a = (a << 16) + getNextHalfword();
         return a;
     }
 
     private int getWord(int address) {
         int a = getHalfword(address);
-        a = (a << 8) + getHalfword(address);
+        a = (a << 16) + getHalfword(address + 2);
         return a;
     }
 
     private void setWord(int address, int number) {
-        setHalfword(address, number);
-        setHalfword(address + 2, number >>> 8);
+        setHalfword(address, number >>> 16);
+        setHalfword(address + 2, number);
     }
 
     // Only use this for 1, 2 or 4 Bytes
@@ -346,8 +347,7 @@ public class VirtualMachine {
             case AddressType.REGISTER_ADDRESSING: {
                 return getRegister(reg, operandSize);
             }
-            case AddressType.RELATIVE_ADDRESSING_WITH_ZERO:
-            case AddressType.STACK_ADDRESSING_WITH_MINUS: {
+            case AddressType.RELATIVE_ADDRESSING_WITH_ZERO, AddressType.STACK_ADDRESSING_WITH_MINUS: {
                 address = computeAddress(addressType, reg, operandSize);
             } break;
             case AddressType.BIG_DIRECT_OPERAND_OR_STACK_ADDRESSING_WITH_PLUS: {
