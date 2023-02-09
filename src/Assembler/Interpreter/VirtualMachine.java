@@ -47,7 +47,7 @@ public class VirtualMachine {
     private final ArrayList<Integer> changedMemory = new ArrayList<>();
 
     public int[] registers = new int[NUMBER_OF_REGISTERS]; //TODO: Make registers private again with proper testing
-    private final boolean[] registersChanged = new boolean[NUMBER_OF_REGISTERS];
+    public final boolean[] registersChanged = new boolean[NUMBER_OF_REGISTERS];
 
     private boolean programHaltet;
 

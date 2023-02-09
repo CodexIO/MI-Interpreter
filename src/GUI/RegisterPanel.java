@@ -21,31 +21,30 @@ public class RegisterPanel extends JPanel implements ActionListener {
         add(createChooserAndRegistersPanel());
     }
 
-    private void updateRegister(int regNum, RegisterViewType regview) {
-        /*Register register = Enviroment.REGISTERS.getRegister(regNum);
-        MyByte[] content = register.getContent(4);
-        boolean changed = register.isChanged();
+    private void updateRegister(int regNum) {
+        RegisterViewType regView = (RegisterViewType) chooser.getSelectedItem();
+        int regValue = vm.registers[regNum];
+        boolean regChanged = vm.registersChanged[regNum];
 
         String text = "";
-        switch (regview) {
+        switch (regView) {
             case DECIMAL:
-                text = Integer.toString(NumberConversion.myBytetoIntWithSign(content));
+                text = Integer.toString(regValue);
                 break;
             case BINARY:
-                text = NumberConversion.myBytetoBin(content);
-                if (Enviroment.showLeadingZeros) {
-                    text = String.format("%1$" + CONSTANTS.WORD_SIZE * 8 + "s", text).replace(" ", "0");
+                text = Integer.toBinaryString(regValue);
+                if (false /* SHOW LEADING ZEROS */) {
+                    //text = String.format("%1$" + CONSTANTS.WORD_SIZE * 8 + "s", text).replace(" ", "0");
                 }
                 break;
             case HEX:
-                text = NumberConversion.myBytetoHex(content);
-                if (Enviroment.showLeadingZeros) {
+                text = "0x" + Integer.toHexString(regValue).toUpperCase();
+                /*if (Enviroment.showLeadingZeros) {
                     text = String.format("%1$" + CONSTANTS.WORD_SIZE * 2 + "s", text).replace(" ", "0");
-                }
+                }*/
                 break;
             case FLOAT:
-                float number = Float.intBitsToFloat(
-                        NumberConversion.myBytetoIntWithoutSign(content));
+                float number = Float.intBitsToFloat(regValue);
                 if (Float.isNaN(number)) {
                     text = "NaN";
                 } else {
@@ -56,8 +55,8 @@ public class RegisterPanel extends JPanel implements ActionListener {
         JTextField textField = registerTextFields[regNum];
 
         textField.setText(text);
-        textField.setForeground(changed ? Color.red : Color.black);
-        textField.setColumns(Math.max(text.length(), 15));*/
+        textField.setForeground(regChanged ? Color.red : Color.black);
+        //textField.setColumns(Math.max(text.length(), 15));
     }
 
 
@@ -98,7 +97,7 @@ public class RegisterPanel extends JPanel implements ActionListener {
 
     public void updateRegisterValues(RegisterViewType viewType) {
         for (int i = 0; i < VirtualMachine.NUMBER_OF_REGISTERS; i++) {
-            updateRegister(i, viewType);
+            updateRegister(i);
         }
     }
 
