@@ -157,7 +157,7 @@ class Window extends JFrame implements ActionListener {
     }
 
     private void updateVmState() {
-        registerPanel.update();
+        registerPanel.updateRegisterValues();
         memoryPanel.renderMemory();
         notificationPane.setText(vm.toString());
     }
@@ -260,7 +260,7 @@ class Window extends JFrame implements ActionListener {
                 vm.run();
                 notificationPane.setText(vm.toString());
 
-                registerPanel.update();
+                registerPanel.updateRegisterValues();
                 memoryPanel.renderMemory();
 
                 break;

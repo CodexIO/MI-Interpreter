@@ -24,7 +24,7 @@ public class RegisterPanel extends JPanel implements ActionListener {
     private void updateRegister(int regNum) {
         RegisterViewType regView = (RegisterViewType) chooser.getSelectedItem();
         int regValue = vm.registers[regNum];
-        boolean regChanged = vm.registersChanged[regNum];
+        boolean regChanged = vm.changedRegisters[regNum];
 
         String text = "";
         switch (regView) {
@@ -38,7 +38,7 @@ public class RegisterPanel extends JPanel implements ActionListener {
                 }
                 break;
             case HEX:
-                text = "0x" + Integer.toHexString(regValue).toUpperCase();
+                text = Integer.toHexString(regValue).toUpperCase();
                 /*if (Enviroment.showLeadingZeros) {
                     text = String.format("%1$" + CONSTANTS.WORD_SIZE * 2 + "s", text).replace(" ", "0");
                 }*/
@@ -56,7 +56,6 @@ public class RegisterPanel extends JPanel implements ActionListener {
 
         textField.setText(text);
         textField.setForeground(regChanged ? Color.red : Color.black);
-        //textField.setColumns(Math.max(text.length(), 15));
     }
 
 
@@ -95,25 +94,15 @@ public class RegisterPanel extends JPanel implements ActionListener {
         return chooserAndRegisters;
     }
 
-    public void updateRegisterValues(RegisterViewType viewType) {
+    public void updateRegisterValues() {
         for (int i = 0; i < VirtualMachine.NUMBER_OF_REGISTERS; i++) {
             updateRegister(i);
         }
     }
 
 
-    public void update() {
-        for (int i = 0; i < VirtualMachine.NUMBER_OF_REGISTERS; i++) {
-            JTextField reg = registerTextFields[i];
-
-            reg.setText(Integer.toString(vm.registers[i]));
-        }
-    }
-
-
     @Override
     public void actionPerformed(ActionEvent e) {
-        RegisterViewType viewType = (RegisterViewType) chooser.getSelectedItem();
-        updateRegisterValues(viewType);
+        updateRegisterValues();
     }
 }

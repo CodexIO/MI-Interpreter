@@ -44,10 +44,10 @@ public class VirtualMachine {
     private boolean C, Z, N, V;
 
     private byte[] memory = new byte[MEMORY_LENGTH];
-    private final ArrayList<Integer> changedMemory = new ArrayList<>();
+    private final boolean[] changedMemory = new boolean[MEMORY_LENGTH];
 
     public int[] registers = new int[NUMBER_OF_REGISTERS]; //TODO: Make registers private again with proper testing
-    public final boolean[] registersChanged = new boolean[NUMBER_OF_REGISTERS];
+    public final boolean[] changedRegisters = new boolean[NUMBER_OF_REGISTERS];
 
     private boolean programHaltet;
 
@@ -57,7 +57,7 @@ public class VirtualMachine {
         for (int i = 0;  i < memory.length; i++) {
             int address = begin + i;
             this.memory[address] = memory[i];
-            changedMemory.add(address);
+            changedMemory[address] = true;
         }
     }
 
@@ -105,7 +105,11 @@ public class VirtualMachine {
     // Resets the State of the VM, so it can run again
     public void reset() {
         V = N = Z = C = false;
-        registers = new int[NUMBER_OF_REGISTERS];
+        Arrays.fill(registers, 0);
+
+
+        Arrays.fill(changedRegisters, false);
+        Arrays.fill(changedMemory, false);
         programHaltet = false;
     }
 
@@ -128,11 +132,12 @@ public class VirtualMachine {
     }
 
     private void decPC() {
-        registers[PC_REGISTER] -= 1;
+        setRegister(PC_REGISTER, 4, registers[PC_REGISTER] - 1);
+
     }
 
     private void incPC() {
-        registers[PC_REGISTER] += 1;
+        setRegister(PC_REGISTER, 4, registers[PC_REGISTER] + 1);
     }
 
     private int getSP(int size) {
@@ -173,6 +178,7 @@ public class VirtualMachine {
     }
 
     private void setByte(int address, int number) {
+        changedMemory[address] = true;
         memory[address] = (byte) (number & 0x000000FF);
     }
 
@@ -201,12 +207,13 @@ public class VirtualMachine {
         int result = value & mask;
 
         //TODO: @Felix I'm not sure we want this behaviour in the registers.
-        result = switch(size) {
+        /*result = switch(size) {
             case 1 -> (byte)  result;
             case 2 -> (short) result;
             case 4 -> (int)   result;
             default -> result;
-        };
+        };*/
+        changedRegisters[reg] = true;
         registers[reg] = result;
     }
 
