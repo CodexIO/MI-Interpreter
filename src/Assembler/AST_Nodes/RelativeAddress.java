@@ -6,6 +6,8 @@ public class RelativeAddress implements Operand {
     private int reg;
     private int size;
 
+    public String labelName;
+
     public RelativeAddress(int o, int r) {
         offset = o;
         reg = r;
@@ -14,6 +16,16 @@ public class RelativeAddress implements Operand {
         else if (offset <= Byte.MAX_VALUE && offset >= Byte.MIN_VALUE) size = 2;
         else if (offset <= Short.MAX_VALUE && offset >= Short.MIN_VALUE) size = 3;
         else size = 5;
+    }
+
+    public RelativeAddress(int o, int r, String l) {
+        this(o, r);
+        labelName = l;
+    }
+
+    public void patchLabel(int address) {
+        //TODO: Explain this for later me.
+        offset = address - offset;
     }
 
     @Override

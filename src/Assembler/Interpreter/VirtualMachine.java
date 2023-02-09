@@ -160,8 +160,12 @@ public class VirtualMachine {
         return result & (0xFFFF_FFFF >>> (4 - size) * 8);
     }
 
+    private int peekNextByte() {
+        return getByte(getPC(WORD_SIZE));
+    }
+
     private int getNextByte() {
-        int result = getByte(getPC(WORD_SIZE));
+        int result = peekNextByte();
         incPC();
         return result;
     }
@@ -330,7 +334,11 @@ public class VirtualMachine {
     }
 
     private int getNextOperand(int operandSize) {
-        int b = getNextByte();
+        // Since the PC can be used by relative Addressing,
+        // we can't increment it before we evaluated the
+        // operand. This is annoying since this method has
+        // many early outs. MAYBE CHANGE THIS LATER @Clean
+        int b = peekNextByte();
 
         int reg = (b & 0x0F);
         int addressType = b >>> 4;
@@ -341,10 +349,12 @@ public class VirtualMachine {
         switch (addressType) {
             // Direct Operand between 0 and 63
             case AddressType.SMALL_DIRECT_OPERAND: {
+                incPC();
                 return (b & 0x3F);
             }
             // Register Addressing
             case AddressType.REGISTER_ADDRESSING: {
+                incPC();
                 return getRegister(reg, operandSize);
             }
             case AddressType.RELATIVE_ADDRESSING_WITH_ZERO, AddressType.STACK_ADDRESSING_WITH_MINUS: {
@@ -358,6 +368,7 @@ public class VirtualMachine {
                         int op = getNextByte();
                         result = (result << 8) + op;
                     }
+                    incPC();
                     return result;
                 }
                 // Stack Addressing by !Rx+
@@ -365,6 +376,8 @@ public class VirtualMachine {
                     address = getRegister(reg);
                     int result = getMemory(address, operandSize);
                     setRegister(reg, WORD_SIZE, address + operandSize);
+
+                    incPC();
                     return result;
                 }
             }
@@ -391,6 +404,7 @@ public class VirtualMachine {
             default: assert(false);
         }
 
+        incPC();
         return getMemory(address, operandSize);
     }
 
@@ -400,7 +414,6 @@ public class VirtualMachine {
         int reg = (b & 0x0F);
         int regValue = getRegister(reg);
 
-        //TODO: @Felix Funktioniert der >>> operator richtig? Soll er nicht mit 0en auffüllen?
         byte addressType = (byte) (b >>> 4);
 
         switch (addressType) {

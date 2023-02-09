@@ -8,6 +8,7 @@ public class Main {
     static byte[] memory = new byte[VirtualMachine.MEMORY_LENGTH];
     static int[] registers = new int[16];
 
+    //TODO: Add printing after each executed Instruction
     public static void main(String[] args) {
         if (args.length == 0) {
             System.out.println("Please specify input state for the memory.");
