@@ -35,7 +35,7 @@ public class MemoryPanel extends JPanel {
                 sb.append(address);
             }
 
-            String data = String.format(" %02X", vm.getMemory(i, 1));
+            String data = String.format(" %02X", (byte) vm.getMemory(i, 1));
             sb.append(data);
         }
         memory.setText(sb.toString());
