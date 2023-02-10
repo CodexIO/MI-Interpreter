@@ -50,6 +50,7 @@ public class VirtualMachine {
     public final boolean[] changedRegisters = new boolean[NUMBER_OF_REGISTERS];
 
     private boolean programHaltet;
+    private int result;
 
     public VirtualMachine(int begin, byte[] memory) {
         //TODO: Handle bad input
@@ -416,6 +417,7 @@ public class VirtualMachine {
     }
 
     private void saveResult(int result, int operandSize) {
+        this.result = result;
         int b = getNextByte();
 
         int reg = (b & 0x0F);
@@ -603,18 +605,7 @@ public class VirtualMachine {
             }
             case DIV_D3 -> {
             }
-            case JEQ -> {
-            }
-            case JNE -> {
-            }
-            case JGT -> {
-            }
-            case JGE -> {
-            }
-            case JLT -> {
-            }
-            case JLE -> {
-            }
+            case JEQ, JNE, JGT, JGE, JLT, JLE -> jumpOnCondition(op);
             case JC -> {
             }
             case JNC -> {
@@ -738,6 +729,31 @@ public class VirtualMachine {
 
         if (twoOperands) decPC();
         saveResult(result, size);
+    }
+
+    private void jumpOnCondition(OpCode op) {
+        boolean cond = switch (op) {
+            case JEQ -> result == 0;
+            case JNE -> result != 0;
+            case JGT -> result >  0;
+            case JGE -> result >= 0;
+            case JLT -> result <  0;
+            case JLE -> result <= 0;
+            default -> false;
+        };
+
+        //TODO: COPY PASTED FROM getNextOperand()
+        //      can we factor this together?
+        int b = getNextByte();
+        int reg = (b & 0x0F);
+        int addressType = b >>> 4;
+        if (addressType < 4) addressType = 0;
+
+        // We pass WORD_SIZE here, but I don't think it's used
+        // in this scenario. @Clean Maybe refactor this?
+        int address = computeAddress(addressType, reg, WORD_SIZE);
+
+        if (cond) setPC(address, WORD_SIZE);
     }
 
     private void setOrAndnotXorFlags(int result, int size) {

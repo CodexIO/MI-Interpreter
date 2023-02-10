@@ -51,6 +51,8 @@ public abstract class Command {
         return address;
     }
 
-    public abstract byte getOpCode();
+    public byte getOpCode() {
+        return (byte) op.opcode;
+    }
     public abstract byte[] generateMachineCode();
 }

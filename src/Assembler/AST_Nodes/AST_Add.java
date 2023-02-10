@@ -23,10 +23,10 @@ public class AST_Add extends Command {
         three = (a3 != null);
     }
 
-    @Override
+    /*@Override
     public byte getOpCode() {
         return (byte) op.opcode; //TODO Generate the right OpCode here
-    }
+    }*/
 
     @Override
     public byte[] generateMachineCode() {
