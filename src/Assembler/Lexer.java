@@ -68,11 +68,16 @@ public class Lexer {
         return new Token(row, col, lexeme, type);
     }
 
+    // @Speed This is horribly slow
     private boolean isKeyword(String s) {
         for (OpCode op : OpCode.values()) {
             String name = op.name;
             if (s.equals(name)) return true;
         }
+        if (s.equals("DD")) return true;
+        if (s.equals("EQU")) return true;
+        if (s.equals("EQUAL")) return true;
+
         return false;
     }
 
@@ -127,6 +132,9 @@ public class Lexer {
             case '!' -> newToken(Type.BANG);
             case '/' -> newToken(Type.SLASH);
             case ':' -> newToken(Type.COLON);
+            case '\''-> newToken(Type.APOSTROPHE);
+            case '(' -> newToken(Type.OPEN_PAREN);
+            case ')' -> newToken(Type.CLOSE_PAREN);
             default -> newToken(Type.UNKNOWN);
         };
     }

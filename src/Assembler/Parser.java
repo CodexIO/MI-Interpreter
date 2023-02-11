@@ -5,7 +5,6 @@ import Assembler.AST_Nodes.*;
 import java.util.ArrayList;
 import java.util.Dictionary;
 import java.util.Hashtable;
-import java.util.Stack;
 
 import static Assembler.OpCode.DataType.*;
 import static Assembler.Token.Type.*;
@@ -94,6 +93,7 @@ public class Parser {
         //TODO @Speed This String comparisons are probably slow.
         Command cmd = switch (command.lexeme) {
             //case "HALT" ->
+            case "DD" -> parseDataDefinition(command);
             case "MOVE" -> parseCommand(command);
             case "MOVEA" -> parseMOVEA(command);
             case "JUMP" -> parseSingleOpCommand(command);
@@ -108,13 +108,8 @@ public class Parser {
         commands.add(cmd);
     }
 
-    private Command parseCommand(Token command) {
-        // Incrementing the currentAddress because of the OpCode Byte
-        int address = currentAddress++;
-
-        Token tk = lx.nextToken();
-        //TODO: Check if tk is really a size indicator
-        OpCode.DataType size = switch (tk.lexeme) {
+    private OpCode.DataType getDataType(Token tk) {
+        return switch (tk.lexeme) {
             case "B" -> OpCode.DataType.BYTE;
             case "H" -> OpCode.DataType.HALFWORD;
             case "W" -> OpCode.DataType.WORD;
@@ -122,6 +117,15 @@ public class Parser {
             case "D" -> OpCode.DataType.DOUBLE;
             default -> NONE;
         };
+    }
+
+    private Command parseCommand(Token command) {
+        // Incrementing the currentAddress because of the OpCode Byte
+        int address = currentAddress++;
+
+        Token tk = lx.nextToken();
+        //TODO: Check if tk is really a size indicator
+        OpCode.DataType size = getDataType(tk);
 
         //TODO: Check if operands are really always
         //TODO  2 or 3... Probably not
@@ -209,6 +213,55 @@ public class Parser {
         }
 
         return null; //TODO: remove this
+    }
+
+    private Command parseDataDefinition(Token command) {
+        int address = currentAddress;
+        ArrayList<Byte> bytes = new ArrayList<>();
+
+        Token tk = lx.nextToken();
+        OpCode.DataType size = getDataType(tk);
+
+        if (size != NONE) tk = lx.nextToken();
+
+        switch (tk.type) {
+            case CONSTANT, MINUS -> {
+                int number = 1;
+                if (tk.type == MINUS) {
+                    number = -1;
+                    tk = lx.nextToken();
+                }
+                number *= Integer.parseInt(tk.lexeme);
+                if (size == NONE) size = getFittingSize(number);
+                switch(size) {
+                    case WORD: {
+                        bytes.add((byte) (number >>> 24));
+                        bytes.add((byte) (number >>> 16));
+                    }
+                    case HALFWORD: bytes.add((byte) (number >>> 8));
+                    case BYTE: bytes.add((byte) number); break;
+                }
+            }
+            //@Implement other cases
+            case OPEN_PAREN -> {
+
+            }
+            case APOSTROPHE -> {
+
+            }
+            case IDENTIFIER -> {
+
+            }
+        }
+
+        currentAddress += bytes.size();
+        return new AST_DataDefinition(null, command.row, address, command.col, -1, bytes);
+    }
+
+    private OpCode.DataType getFittingSize(int number) {
+        if (number <= Byte.MAX_VALUE && number >= Byte.MIN_VALUE) return BYTE;
+        else if (number <= Short.MAX_VALUE && number >= Short.MIN_VALUE) return HALFWORD;
+        else return WORD;
     }
 
     //TODO: For now this only handles !Rx+. @Cleanup
