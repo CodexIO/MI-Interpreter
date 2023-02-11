@@ -2,7 +2,6 @@ package Assembler.Interpreter;
 
 import Assembler.OpCode;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 
 public class VirtualMachine {
@@ -50,7 +49,7 @@ public class VirtualMachine {
     public final boolean[] changedRegisters = new boolean[NUMBER_OF_REGISTERS];
 
     private boolean programHaltet;
-    private int result;
+    private int operationResult;
 
     public VirtualMachine(int begin, byte[] memory) {
         //TODO: Handle bad input
@@ -307,44 +306,87 @@ public class VirtualMachine {
         return getAddress(address1);
     }
 
-    private int computeAddress(int addressType, int reg, int operandSize) {
+    private int computeNextAddress(int operandSize) {
+        //TODO: COPY PASTED FROM getNextOperand()
+        //      can we factor this together?
+        //      Maybe make 'em part of the VM
+        int b = getNextByte();
+        int reg = (b & 0x0F);
+        int addressType = b >>> 4;
+        if (addressType < 4) addressType = 0;
+
+        return computeAddress(b, addressType, reg, operandSize);
+    }
+
+
+    // TODO: Maybe Factor computeAddress and getOperand together.
+    private int computeAddress(int b, int addressType, int reg, int operandSize) {
         switch (addressType) {
-            // Relative Addressing a + !Rx, where a = 0
-            case AddressType.RELATIVE_ADDRESSING_WITH_ZERO: {
+            // Direct Operand between 0 and 63
+            case AddressType.SMALL_DIRECT_OPERAND -> {
+                return (b & 0x3F);
+            }
+            // Register Addressing || Relative Addressing a + !Rx, where a = 0
+            case AddressType.REGISTER_ADDRESSING, AddressType.RELATIVE_ADDRESSING_WITH_ZERO -> {
                 return getRegister(reg, operandSize);
             }
+
+            case AddressType.STACK_ADDRESSING_WITH_MINUS -> {
+                return computeStackAddressingWithMinus(reg, operandSize);
+            }
+
+            case AddressType.BIG_DIRECT_OPERAND_OR_STACK_ADDRESSING_WITH_PLUS -> {
+                // Direct Operand bigger than 63
+                if (reg == 15) {
+                    int operand = 0;
+                    for (int i = 0; i < operandSize; i++) {
+                        int op = getNextByte();
+                        operand = (operand << 8) + op;
+                    }
+                    return operand;
+                }
+                // Stack Addressing by !Rx+
+                else {
+                    int tmpAddress = getRegister(reg);
+                    int address = getMemory(tmpAddress, operandSize);
+                    setRegister(reg, WORD_SIZE, tmpAddress + operandSize);
+                    return address;
+                }
+            }
+
             // Absolute Addressing
-            case AddressType.ABSOLUT_ADDRESS: {
-                // Since we only need b here for a check that should always be true
-                // we won't pass it to the Function at the Moment
-                //assert((b & 0x0F) == 15); //Not sure why the rest of the byte has to be 15
+            case AddressType.ABSOLUT_ADDRESS -> {
+                assert((b & 0x0F) == 15); //Not sure why the rest of the byte has to be 15
 
                 return getNextWord();
             }
+
             // Relative Addressing a + !Rx, where a fits into one byte
-            case AddressType.RELATIVE_ADDRESSING_WITH_BYTE: {
+            case AddressType.RELATIVE_ADDRESSING_WITH_BYTE -> {
                 return computeRelativeAddressing(reg, BYTE_SIZE);
             }
+
             // Relative Addressing a + !Rx, where a fits into two byte
-            case AddressType.RELATIVE_ADDRESSING_WITH_HALFWORD: {
+            case AddressType.RELATIVE_ADDRESSING_WITH_HALFWORD -> {
                 return computeRelativeAddressing(reg, HALFWORD_SIZE);
             }
-            case AddressType.RELATIVE_ADDRESSING_WITH_WORD: {
+            case AddressType.RELATIVE_ADDRESSING_WITH_WORD -> {
                 return computeRelativeAddressing(reg, WORD_SIZE);
             }
-            case AddressType.INDICATED_RELATIVE_ADDRESSING: {
+            case AddressType.INDICATED_RELATIVE_ADDRESSING -> {
                 //TODO: Implement me
-            } break;
-            case AddressType.INDIRECT_ADDRESSING_WITH_BYTE: {
+            }
+            case AddressType.INDIRECT_ADDRESSING_WITH_BYTE -> {
                 return computeIndirectAddressing(reg, BYTE_SIZE);
             }
-            case AddressType.INDIRECT_ADDRESSING_WITH_HALFWORD: {
+            case AddressType.INDIRECT_ADDRESSING_WITH_HALFWORD -> {
                 return computeIndirectAddressing(reg, HALFWORD_SIZE);
             }
-            case AddressType.INDIRECT_ADDRESSING_WITH_WORD: {
+            case AddressType.INDIRECT_ADDRESSING_WITH_WORD -> {
                 return computeIndirectAddressing(reg, WORD_SIZE);
             }
-            default: assert(false);
+
+            //default -> assert(false);
         }
         //TODO: ERROR HERE
         return -1;
@@ -369,17 +411,17 @@ public class VirtualMachine {
                 return getRegister(reg, operandSize);
             }
             case AddressType.RELATIVE_ADDRESSING_WITH_ZERO, AddressType.STACK_ADDRESSING_WITH_MINUS: {
-                address = computeAddress(addressType, reg, operandSize);
+                address = computeAddress(b, addressType, reg, operandSize);
             } break;
             case AddressType.BIG_DIRECT_OPERAND_OR_STACK_ADDRESSING_WITH_PLUS: {
                 // Direct Operand bigger than 63
                 if (reg == 15) {
-                    int result = 0;
+                    int operand = 0;
                     for (int i = 0; i < operandSize; i++) {
                         int op = getNextByte();
-                        result = (result << 8) + op;
+                        operand = (operand << 8) + op;
                     }
-                    return result;
+                    return operand;
                 }
                 // Stack Addressing by !Rx+
                 else {
@@ -393,19 +435,19 @@ public class VirtualMachine {
             // Absolute Addressing
             case AddressType.ABSOLUT_ADDRESS: {
                 assert((b & 0x0F) == 15); //Not sure why the rest of the byte has to be 15
-                address = computeAddress(addressType, reg, operandSize);
+                address = computeAddress(b, addressType, reg, operandSize);
             } break;
             case AddressType.RELATIVE_ADDRESSING_WITH_BYTE:
             case AddressType.INDIRECT_ADDRESSING_WITH_BYTE: {
-                address = computeAddress(addressType, reg, BYTE_SIZE);
+                address = computeAddress(b, addressType, reg, BYTE_SIZE);
             } break;
             case AddressType.RELATIVE_ADDRESSING_WITH_HALFWORD:
             case AddressType.INDIRECT_ADDRESSING_WITH_HALFWORD: {
-                address = computeAddress(addressType, reg, HALFWORD_SIZE);
+                address = computeAddress(b, addressType, reg, HALFWORD_SIZE);
             } break;
             case AddressType.RELATIVE_ADDRESSING_WITH_WORD:
             case AddressType.INDIRECT_ADDRESSING_WITH_WORD: {
-                address = computeAddress(addressType, reg, WORD_SIZE);
+                address = computeAddress(b, addressType, reg, WORD_SIZE);
             } break;
             case AddressType.INDICATED_RELATIVE_ADDRESSING: {
                 //TODO: Implement me
@@ -417,7 +459,7 @@ public class VirtualMachine {
     }
 
     private void saveResult(int result, int operandSize) {
-        this.result = result;
+        this.operationResult = result;
         int b = getNextByte();
 
         int reg = (b & 0x0F);
@@ -610,8 +652,7 @@ public class VirtualMachine {
             }
             case JNC -> {
             }
-            case JUMP -> {
-            }
+            case JUMP -> jump();
             case CALL -> {
             }
             case RET -> {
@@ -692,7 +733,7 @@ public class VirtualMachine {
         int addressType = b >>> 4;
         if (addressType < 4) addressType = 0;
 
-        int address = computeAddress(addressType, reg, WORD_SIZE);
+        int address = computeAddress(b, addressType, reg, WORD_SIZE);
 
         saveResult(address, WORD_SIZE);
     }
@@ -731,28 +772,23 @@ public class VirtualMachine {
         saveResult(result, size);
     }
 
+    private void jump() {
+        int address = computeNextAddress(WORD_SIZE);
+        setPC(address, WORD_SIZE);
+    }
+
     private void jumpOnCondition(OpCode op) {
         boolean cond = switch (op) {
-            case JEQ -> result == 0;
-            case JNE -> result != 0;
-            case JGT -> result >  0;
-            case JGE -> result >= 0;
-            case JLT -> result <  0;
-            case JLE -> result <= 0;
+            case JEQ -> operationResult == 0;
+            case JNE -> operationResult != 0;
+            case JGT -> operationResult >  0;
+            case JGE -> operationResult >= 0;
+            case JLT -> operationResult <  0;
+            case JLE -> operationResult <= 0;
             default -> false;
         };
 
-        //TODO: COPY PASTED FROM getNextOperand()
-        //      can we factor this together?
-        int b = getNextByte();
-        int reg = (b & 0x0F);
-        int addressType = b >>> 4;
-        if (addressType < 4) addressType = 0;
-
-        // We pass WORD_SIZE here, but I don't think it's used
-        // in this scenario. @Clean Maybe refactor this?
-        int address = computeAddress(addressType, reg, WORD_SIZE);
-
+        int address = computeNextAddress(WORD_SIZE);
         if (cond) setPC(address, WORD_SIZE);
     }
 

@@ -5,6 +5,7 @@ import Assembler.AST_Nodes.*;
 import java.util.ArrayList;
 import java.util.Dictionary;
 import java.util.Hashtable;
+import java.util.Stack;
 
 import static Assembler.OpCode.DataType.*;
 import static Assembler.Token.Type.*;
@@ -101,7 +102,6 @@ public class Parser {
             case "MULT" -> parseCommand(command);
             case "DIV" -> parseCommand(command);
             case "JEQ", "JNE", "JGT", "JGE", "JLT", "JLE" -> parseSingleOpCommand(command);
-
             default -> null;
         };
 
@@ -200,11 +200,24 @@ public class Parser {
         else if (tk.type == IDENTIFIER) {
             return parseLabelAddress(tk);
         }
+        else if (tk.type == BANG) {
+            //TODO: Handle the other types of Addressing that start with !
+            return parseStackAddressing();
+        }
         else {
             //TODO: ERROR
         }
 
         return null; //TODO: remove this
+    }
+
+    //TODO: For now this only handles !Rx+. @Cleanup
+    private StackAddress parseStackAddressing() {
+        Token regTk = lx.nextToken();
+        RegisterAddress reg = parseRegisterAddress(regTk);
+        eat(PLUS);
+
+        return new StackAddress(reg.getReg(), true);
     }
 
     private RelativeAddress parseRelativeAddress(Token tk) {
