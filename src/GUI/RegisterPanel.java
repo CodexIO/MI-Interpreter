@@ -80,7 +80,7 @@ public class RegisterPanel extends JPanel implements ActionListener {
             JTextField textField = new JTextField();
             textField.setText("0");
             textField.setHorizontalAlignment(SwingConstants.RIGHT);
-            textField.setFocusable(false); //TODO: Later we want to allow changing Register Values mid run
+            textField.setEditable(false); //TODO: Later we want to allow changing Register Values mid run
             textField.setMargin(new Insets(0, 5, 0, 5));
             textField.setColumns(10);
 

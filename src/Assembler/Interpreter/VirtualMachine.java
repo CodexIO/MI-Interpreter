@@ -822,8 +822,6 @@ public class VirtualMachine {
     }
 
     public void add_b3() {
-        //TODO: Zum testen gehen wir jetzt kurzzeitig von Registern aus
-
         int a1 = getNextOperand(1);
         int a2 = getNextOperand(1);
         int result = a1 + a2;
