@@ -92,16 +92,17 @@ public class Parser {
 
         //TODO @Speed This String comparisons are probably slow.
         Command cmd = switch (command.lexeme) {
-            //case "HALT" ->
+            case "HALT" -> parseZeroOpCommand(command);
             case "DD" -> parseDataDefinition(command);
             case "MOVE" -> parseCommand(command);
             case "MOVEA" -> parseMOVEA(command);
-            case "JUMP" -> parseSingleOpCommand(command);
             case "ADD" -> parseCommand(command);
             case "SUB" -> parseCommand(command);
             case "MULT" -> parseCommand(command);
             case "DIV" -> parseCommand(command);
             case "JEQ", "JNE", "JGT", "JGE", "JLT", "JLE" -> parseSingleOpCommand(command);
+            case "JUMP", "CALL" -> parseSingleOpCommand(command);
+            case "RET" -> parseZeroOpCommand(command);
             default -> null;
         };
 
@@ -173,6 +174,14 @@ public class Parser {
         //TODO: Think of a convenient way to keep track of current line and row
         //TODO:                                      |
         return new AST_Add(op, command.row, address, command.col, -1, a1, a2, null);
+    }
+
+    private Command parseZeroOpCommand(Token command) {
+        int address = currentAddress++;
+
+        OpCode op = OpCode.getOpCode(command.lexeme, NONE, 0);
+
+        return new AST_ZeroOp(op, command.row, address, command.col, -1);
     }
 
     private Command parseSingleOpCommand(Token command) {

@@ -123,29 +123,45 @@ public class VirtualMachine {
         System.arraycopy(mem, 0, memory, 0, mem.length);
     }
 
+    //@Cleanup Check if this even gets called from other than getPC()
     public int getPC(int size) {
         return getRegister(PC_REGISTER, size);
+    }
+
+    public int getPC() {
+        return getPC(WORD_SIZE);
     }
 
     public void setPC(int value, int size) {
         setRegister(PC_REGISTER, size, value);
     }
 
-    private void decPC() {
-        setRegister(PC_REGISTER, 4, registers[PC_REGISTER] - 1);
+    public void setPC(int value) {
+        setPC(value, WORD_SIZE);
+    }
 
+    private void decPC() {
+        setRegister(PC_REGISTER, WORD_SIZE, registers[PC_REGISTER] - 1);
     }
 
     private void incPC() {
-        setRegister(PC_REGISTER, 4, registers[PC_REGISTER] + 1);
+        setRegister(PC_REGISTER, WORD_SIZE, registers[PC_REGISTER] + 1);
     }
 
     private int getSP(int size) {
         return getRegister(SP_REGISTER, size);
     }
 
+    private int getSP() {
+        return getSP(WORD_SIZE);
+    }
+
     private void setSP(int value, int size) {
         setRegister(SP_REGISTER, size, value);
+    }
+
+    private void setSP(int value) {
+        setSP(value, WORD_SIZE);
     }
 
     public void setV(int result, int size) {
@@ -166,7 +182,7 @@ public class VirtualMachine {
     }
 
     private int getNextByte() {
-        int result = getByte(getPC(WORD_SIZE));
+        int result = getByte(getPC());
         incPC();
         return result;
     }
@@ -653,10 +669,8 @@ public class VirtualMachine {
             case JNC -> {
             }
             case JUMP -> jump();
-            case CALL -> {
-            }
-            case RET -> {
-            }
+            case CALL -> call();
+            case RET -> ret();
             case PUSHR -> {
             }
             case POPR -> {
@@ -726,15 +740,7 @@ public class VirtualMachine {
     }
 
     public void movea() {
-        //TODO: This is not the same as move. Figure out how to do this
-        int b = getNextByte();
-
-        int reg = (b & 0x0F);
-        int addressType = b >>> 4;
-        if (addressType < 4) addressType = 0;
-
-        int address = computeAddress(b, addressType, reg, WORD_SIZE);
-
+        int address = computeNextAddress(WORD_SIZE);
         saveResult(address, WORD_SIZE);
     }
 
@@ -774,7 +780,22 @@ public class VirtualMachine {
 
     private void jump() {
         int address = computeNextAddress(WORD_SIZE);
-        setPC(address, WORD_SIZE);
+        setPC(address);
+    }
+
+    private void call() {
+        int address = computeNextAddress(WORD_SIZE);
+
+        setSP(getSP() - 4);
+        setMemory(getSP(), WORD_SIZE, getPC());
+
+        setPC(address);
+    }
+
+    private void ret() {
+        int address = getMemory(getSP(), WORD_SIZE);
+        setPC(address);
+        setSP(getSP() + 4);
     }
 
     private void jumpOnCondition(OpCode op) {
