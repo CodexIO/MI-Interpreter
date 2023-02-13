@@ -39,7 +39,7 @@ public class Lexer {
     }
 
     private char peekNext() {
-        return source.charAt(index - 1);
+        return source.charAt(index + 1);
     }
 
     private boolean match(char expected) {
@@ -60,7 +60,14 @@ public class Lexer {
     }
 
     private void eatComments() {
-        // TODO: Implement me!
+        if (peek() == '-' && peekNext() == '-') {
+
+            int c = nextChar();
+            while (c != '\n' && c != '\0' && c != ';') c = nextChar();
+
+            advance();
+        }
+
     }
 
     private Token newToken(Type type) {
@@ -108,6 +115,7 @@ public class Lexer {
     public Token nextToken() {
         // This is used, so we can peek a Token without Lexing all the
         // tokens up front.
+        // @Cleanup we probably want to lex the tokens upfront. This is messy
         if (peekedToken != null) {
             Token tmp = peekedToken;
             peekedToken = null;
