@@ -2,6 +2,9 @@ package Assembler;
 
 import Assembler.Token.Type;
 
+import java.lang.reflect.Array;
+import java.util.*;
+
 public class Lexer {
 
     private int row = 1;
@@ -11,7 +14,8 @@ public class Lexer {
     private int index = 0;       // Indexes the current position in the String
     private int start = 0;       // Marks the start position of the current Token
 
-    private Token peekedToken;
+    private final List<Token> tokens = new ArrayList<>();
+    private final Map<String, ArrayList<Token>> equalsDefinitions = new HashMap<>();
 
     public Lexer(String i) {
         source = i + "\0";
@@ -42,14 +46,6 @@ public class Lexer {
         return source.charAt(index + 1);
     }
 
-    private boolean match(char expected) {
-        if (peek() == expected) {
-            advance();
-            return true;
-        }
-        return false;
-    }
-
     private void eatWhitespace() {
         char c;
         while (true) {
@@ -60,14 +56,17 @@ public class Lexer {
     }
 
     private void eatComments() {
-        if (peek() == '-' && peekNext() == '-') {
+        while (true) {
+            if (peek() == '-' && peekNext() == '-') {
 
-            int c = nextChar();
-            while (c != '\n' && c != '\0' && c != ';') c = nextChar();
+                char c = nextChar();
+                while (c != '\n' && c != '\0' && c != ';') c = nextChar();
 
-            advance();
+            }
+            else break;
+
+            eatWhitespace();
         }
-
     }
 
     private Token newToken(Type type) {
@@ -90,15 +89,65 @@ public class Lexer {
         return false;
     }
 
+    // Returns the next normal Token after all relevant Tokens for EQU are lexed
+    private Token lexEquals() {
+        eatWhitespace();
+
+        start = index;
+
+        Token name = lexKeywordOrIdentifier();
+
+        if (name.type != Type.IDENTIFIER) System.exit(-1);//TODO: ERROR
+
+        eatWhitespace();
+
+        //TODO: ERROR
+        if (nextChar() != '=') System.exit(-1);
+
+        int lineNumber = row;
+        ArrayList<Token> replacementTokens = new ArrayList<>();
+
+        Token tk = nextToken();
+        while (tk.row == lineNumber) {
+            replacementTokens.add(tk);
+            tk = nextToken();
+
+        }
+
+        equalsDefinitions.put(name.lexeme, replacementTokens);
+
+        return tk;
+    }
+
+    private Token maybeReplaceIdentifier(Token identifier) {
+        for (String key : equalsDefinitions.keySet()) {
+            if (key.equals(identifier.lexeme)) {
+                identifier.type = Type.REPLACED_BY_EQUAL;
+
+                //@Robustness:  This only works if the EQU has been seen before,
+                // I'm unsure if EQU use before it's definition is allowed.
+                ArrayList<Token> replacementTokens = equalsDefinitions.get(key);
+                tokens.addAll(replacementTokens);
+
+                return identifier;
+            }
+        }
+        return identifier;
+    }
+
     private Token lexKeywordOrIdentifier() {
-        while (Character.isAlphabetic(peek()) || Character.isDigit(peek())) advance();
+        while (Character.isAlphabetic(peek()) || Character.isDigit(peek()) || peek() == '_') advance();
 
         Token tk = newToken(Type.IDENTIFIER);
 
-        if(isKeyword(tk.lexeme)) tk.type = Type.KEYWORD;
-        // TODO: Check if the Token is a Keyword.
+        // When we encounter a line beginning with EQU we parse it directly
+        if (tk.lexeme.equals("EQU") || tk.lexeme.equals("EQUALS")) {
+            return lexEquals();
+        }
 
-        return tk;
+        if(isKeyword(tk.lexeme)) tk.type = Type.KEYWORD;
+
+        return maybeReplaceIdentifier(tk);
     }
 
     private Token lexNumberConstant() {
@@ -107,28 +156,26 @@ public class Lexer {
         return newToken(Type.CONSTANT);
     }
 
-    public Token peekToken() {
-        peekedToken = nextToken();
-        return peekedToken;
+    public List<Token> getTokens() {
+        Token tk = nextToken();
+        while (tk.type != Type.UNKNOWN) {
+            // @Cleanup: Maybe we later want to create a Token that encapsulates
+            // this information, for better Error Messages.
+            if (tk.type != Type.REPLACED_BY_EQUAL) tokens.add(tk);
+
+            tk = nextToken();
+        }
+
+        return tokens;
     }
 
     public Token nextToken() {
-        // This is used, so we can peek a Token without Lexing all the
-        // tokens up front.
-        // @Cleanup we probably want to lex the tokens upfront. This is messy
-        if (peekedToken != null) {
-            Token tmp = peekedToken;
-            peekedToken = null;
-            return tmp;
-        }
-
         eatWhitespace();
         eatComments();
 
         start = index;
         char c = nextChar();
 
-        //TODO is underscore allowed at the beginning of an Identifier
         if (Character.isAlphabetic(c)) {
             return lexKeywordOrIdentifier();
         } else if (Character.isDigit(c)) {

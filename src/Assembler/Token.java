@@ -20,7 +20,8 @@ public class Token {
         KEYWORD,
         CONSTANT,
         IDENTIFIER,
-        UNKNOWN
+        UNKNOWN, //@Cleanup right now this is used for End of File and unknown Tokens, separate these
+        REPLACED_BY_EQUAL,
     }
 
     public Token(int r, int c, String l, Type t) {

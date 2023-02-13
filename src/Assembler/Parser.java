@@ -3,41 +3,52 @@ package Assembler;
 import Assembler.AST_Nodes.*;
 import Interpreter.VirtualMachine;
 
-import java.util.ArrayList;
-import java.util.Dictionary;
-import java.util.Hashtable;
+import java.util.*;
 
 import static Assembler.OpCode.DataType.*;
 import static Assembler.Token.Type.*;
 
 public class Parser {
 
-    private Lexer lx;
-    private ArrayList<Token> tokens;
-    private ArrayList<Command> commands = new ArrayList<>();
-    private ArrayList<RelativeAddress> labelsToPatch = new ArrayList<>();
-    private Dictionary<String, Integer> labelAdresses = new Hashtable<>();
+    private final Lexer lx;
+    private final List<Token> tokens;
+    private int tokenPosition;
+
+    private final List<Command> commands = new ArrayList<>();
+    private final List<RelativeAddress> labelsToPatch = new ArrayList<>();
+    private final Map<String, Integer> labelAddresses = new HashMap<>();
 
     private int currentAddress = 0;
 
-    public Parser(String input) {
-        lx = new Lexer(input);
-    }
-
     public Parser(Lexer lexer) {
         lx = lexer;
+        tokens = lx.getTokens();
+    }
+
+    public Parser(String input) {
+        this(new Lexer(input));
+    }
+
+    private Token nextToken() {
+        Token tk = peekToken();
+        tokenPosition += 1;
+        return tk;
+    }
+
+    private Token peekToken() {
+        if (tokenPosition >= tokens.size()) return new Token(-1, -1, "", UNKNOWN);
+        return tokens.get(tokenPosition);
     }
 
     private void eat(Token.Type type) {
-        Token tk = lx.nextToken();
+        Token tk = nextToken();
         if (tk.type != type) assert(false);//TODO: ERROR
     }
 
     private boolean match(Token.Type type) {
-        //TODO: Figure out how to peekToken. Maybe Lex all the Tokens upfront
-        Token tk = lx.peekToken();
+        Token tk = peekToken();
         if (tk.type == type) {
-            lx.nextToken();
+            nextToken();
             return true;
         }
         return false;
@@ -70,7 +81,7 @@ public class Parser {
     }
 
     public void parse() {
-        Token tk = lx.nextToken();
+        Token tk = nextToken();
 
         while (tk.type != UNKNOWN) {
             switch (tk.type) {
@@ -78,7 +89,7 @@ public class Parser {
                 case IDENTIFIER -> parseLabel(tk);
                 default -> System.out.println("Unhandled TokenType: " + tk.type + " Lexeme: " + tk.lexeme);
             }
-            tk = lx.nextToken();
+            tk = nextToken();
         }
 
         patchLabels();
@@ -86,7 +97,7 @@ public class Parser {
 
     private void parseLabel(Token name) {
         eat(COLON);
-        labelAdresses.put(name.lexeme, currentAddress);
+        labelAddresses.put(name.lexeme, currentAddress);
     }
 
     private void parseKeyword(Token command) {
@@ -125,7 +136,7 @@ public class Parser {
         // Incrementing the currentAddress because of the OpCode Byte
         int address = currentAddress++;
 
-        Token tk = lx.nextToken();
+        Token tk = nextToken();
         //TODO: Check if tk is really a size indicator
         OpCode.DataType size = getDataType(tk);
 
@@ -197,13 +208,13 @@ public class Parser {
     }
 
     private Operand parseOperand(OpCode.DataType size) {
-        Token tk = lx.nextToken();
+        Token tk = nextToken();
 
         if (tk.lexeme.equals("I")) {
             return parseImmediateOperand(size);
         }
         else if (tk.type == CONSTANT) {
-            if (lx.peekToken().type == PLUS)
+            if (match(PLUS))
                 return parseRelativeAddress(tk);
             else
                 return parseAbsoluteAddress(tk);
@@ -233,17 +244,17 @@ public class Parser {
         int address = currentAddress;
         ArrayList<Byte> bytes = new ArrayList<>();
 
-        Token tk = lx.nextToken();
+        Token tk = nextToken();
         OpCode.DataType size = getDataType(tk);
 
-        if (size != NONE) tk = lx.nextToken();
+        if (size != NONE) tk = nextToken();
 
         switch (tk.type) {
             case CONSTANT, MINUS -> {
                 int number = 1;
                 if (tk.type == MINUS) {
                     number = -1;
-                    tk = lx.nextToken();
+                    tk = nextToken();
                 }
                 number *= Integer.parseInt(tk.lexeme);
                 if (size == NONE) size = getFittingSize(number);
@@ -280,7 +291,7 @@ public class Parser {
 
     //TODO: For now this only handles !Rx+. @Cleanup
     private StackAddress parseStackAddressing() {
-        Token regTk = lx.nextToken();
+        Token regTk = nextToken();
         RegisterAddress reg = parseRegisterAddress(regTk);
         eat(PLUS);
 
@@ -290,10 +301,9 @@ public class Parser {
     private RelativeAddress parseRelativeAddress(Token tk) {
         int offset = Integer.parseInt(tk.lexeme);
 
-        eat(PLUS);
         eat(BANG);
 
-        Token regTk = lx.nextToken();
+        Token regTk = nextToken();
         RegisterAddress reg = parseRegisterAddress(regTk);
 
         return new RelativeAddress(offset, reg.getReg());
@@ -315,7 +325,7 @@ public class Parser {
     //TODO: Labels are apparently relative to the PC and not AbsoluteAddresses. Fix this.
     private RelativeAddress parseLabelAddress(Token tk) {
         String labelName = tk.lexeme;
-        Integer address = labelAdresses.get(labelName);
+        Integer address = labelAddresses.get(labelName);
         int pc = currentAddress + 1;
         int pcReg = 15;
 
@@ -332,7 +342,7 @@ public class Parser {
 
     private ImmediateOperand parseImmediateOperand(OpCode.DataType size) {
         //TODO: Support Floating Point
-        Token tk = lx.nextToken();
+        Token tk = nextToken();
 
         switch(tk.type) {
             case CONSTANT -> {
@@ -340,7 +350,7 @@ public class Parser {
                 return new ImmediateOperand(number, size);
             }
             case IDENTIFIER -> {
-                Token num = lx.nextToken();
+                Token num = nextToken();
                 switch (tk.lexeme) {
                     case "B" -> {
                         int number = Integer.parseInt(num.lexeme, 2);
@@ -364,7 +374,7 @@ public class Parser {
 
     private void patchLabels() {
         for (RelativeAddress adr : labelsToPatch) {
-            Integer address = labelAdresses.get(adr.labelName);
+            Integer address = labelAddresses.get(adr.labelName);
 
             //TODO: ERROR Unknown label;
             if (address == null) System.out.println("Unknown Label " + adr.labelName);
