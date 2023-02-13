@@ -1,6 +1,6 @@
 package GUI;
 
-import Assembler.Interpreter.VirtualMachine;
+import Interpreter.VirtualMachine;
 
 import javax.swing.*;
 

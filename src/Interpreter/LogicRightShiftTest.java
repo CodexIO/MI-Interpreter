@@ -1,4 +1,4 @@
-package Assembler.Interpreter;
+package Interpreter;
 
 import org.junit.jupiter.api.Test;
 

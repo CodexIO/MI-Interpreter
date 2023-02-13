@@ -1,7 +1,7 @@
 package GUI;
 
 // Java Program to create a text editor using java
-import Assembler.Interpreter.VirtualMachine;
+import Interpreter.VirtualMachine;
 import Assembler.Parser;
 
 import javax.swing.*;

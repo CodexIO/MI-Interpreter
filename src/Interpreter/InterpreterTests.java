@@ -1,4 +1,4 @@
-package Assembler.Interpreter;
+package Interpreter;
 
 import Assembler.OpCode;
 import org.junit.jupiter.api.BeforeEach;
@@ -72,7 +72,7 @@ public class InterpreterTests {
         VirtualMachine vm = new VirtualMachine(ABSOLUTE_ADDRESS_MOVE);
         vm.run();
 
-        assertEquals(OpCode.MOVE_B.opcode, vm.getMemory(0x70, 1));
+        assertEquals(OpCode.MOVE_B.opcode, vm.getMemory(0x70, 1) & 0xFF);
     }
 
     @Test
@@ -90,7 +90,7 @@ public class InterpreterTests {
         vm.registers[0] = 4;
         vm.run();
 
-        assertEquals(MOVE_B.opcode, vm.getMemory(4, 1));
+        assertEquals(MOVE_B.opcode, vm.getMemory(4, 1) & 0xFF);
         assertEquals(MOVE_B.opcode, vm.registers[2]);
     }
 }

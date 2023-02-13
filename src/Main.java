@@ -1,4 +1,4 @@
-import Assembler.Interpreter.VirtualMachine;
+import Interpreter.VirtualMachine;
 import Assembler.Lexer;
 import Assembler.Parser;
 

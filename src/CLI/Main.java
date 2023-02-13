@@ -1,6 +1,6 @@
 package CLI;
 
-import Assembler.Interpreter.VirtualMachine;
+import Interpreter.VirtualMachine;
 
 public class Main {
 

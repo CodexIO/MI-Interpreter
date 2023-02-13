@@ -1,7 +1,7 @@
 package Assembler;
 
 import Assembler.AST_Nodes.*;
-import Assembler.Interpreter.VirtualMachine;
+import Interpreter.VirtualMachine;
 
 import java.util.ArrayList;
 import java.util.Dictionary;

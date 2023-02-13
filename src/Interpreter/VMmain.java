@@ -1,4 +1,4 @@
-package Assembler.Interpreter;
+package Interpreter;
 
 public class VMmain {
 

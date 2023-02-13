@@ -1,4 +1,4 @@
-package Assembler.Interpreter;
+package Interpreter;
 
 import Assembler.OpCode;
 
