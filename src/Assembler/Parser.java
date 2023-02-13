@@ -1,6 +1,7 @@
 package Assembler;
 
 import Assembler.AST_Nodes.*;
+import Assembler.Interpreter.VirtualMachine;
 
 import java.util.ArrayList;
 import java.util.Dictionary;
@@ -209,6 +210,10 @@ public class Parser {
         }
         else if (tk.lexeme.startsWith("R")) {
             return parseRegisterAddress(tk);
+        }
+        else if (tk.type == KEYWORD) {
+            if (tk.lexeme.equals("PC")) return new RegisterAddress(VirtualMachine.PC_REGISTER);
+            if (tk.lexeme.equals("SP")) return new RegisterAddress(VirtualMachine.SP_REGISTER);
         }
         else if (tk.type == IDENTIFIER) {
             return parseLabelAddress(tk);

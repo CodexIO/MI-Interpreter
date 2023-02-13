@@ -77,6 +77,8 @@ public class Lexer {
         if (s.equals("DD")) return true;
         if (s.equals("EQU")) return true;
         if (s.equals("EQUAL")) return true;
+        if (s.equals("SP")) return true;
+        if (s.equals("PC")) return true;
 
         return false;
     }
