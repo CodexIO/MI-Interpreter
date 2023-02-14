@@ -595,81 +595,81 @@ public class VirtualMachine {
             case MOVEC_W -> movec(WORD_SIZE);
 
             case MOVEA -> movea();
-            case OR_B2 -> or_2(BYTE_SIZE);
-            case OR_H2 -> or_2(HALFWORD_SIZE);
-            case OR_W2 -> or_2(WORD_SIZE);
-            case OR_B3 -> or_3(BYTE_SIZE);
-            case OR_H3 -> or_3(HALFWORD_SIZE);
-            case OR_W3 -> or_3(WORD_SIZE);
+            case OR_B2 -> arithmeticOperation(BYTE_SIZE, Operation.OR, true);
+            case OR_H2 -> arithmeticOperation(HALFWORD_SIZE, Operation.OR, true);
+            case OR_W2 -> arithmeticOperation(WORD_SIZE, Operation.OR, true);
+            case OR_B3 -> arithmeticOperation(BYTE_SIZE, Operation.OR, false);
+            case OR_H3 -> arithmeticOperation(HALFWORD_SIZE, Operation.OR, false);
+            case OR_W3 -> arithmeticOperation(WORD_SIZE, Operation.OR, false);
 
-            case ANDNOT_B2 -> andnot_2(BYTE_SIZE);
-            case ANDNOT_H2 -> HOW_TO_NAME_THIS(HALFWORD_SIZE, Operation.ANDNOT, true);
-            case ANDNOT_W2 -> HOW_TO_NAME_THIS(WORD_SIZE, Operation.ANDNOT, true);
+            case ANDNOT_B2 -> arithmeticOperation(BYTE_SIZE, Operation.ANDNOT, true);
+            case ANDNOT_H2 -> arithmeticOperation(HALFWORD_SIZE, Operation.ANDNOT, true);
+            case ANDNOT_W2 -> arithmeticOperation(WORD_SIZE, Operation.ANDNOT, true);
 
-            case ANDNOT_B3 -> HOW_TO_NAME_THIS(BYTE_SIZE, Operation.ANDNOT, false);
-            case ANDNOT_H3 -> HOW_TO_NAME_THIS(HALFWORD_SIZE, Operation.ANDNOT, false);
-            case ANDNOT_W3 -> HOW_TO_NAME_THIS(WORD_SIZE, Operation.ANDNOT, false);
+            case ANDNOT_B3 -> arithmeticOperation(BYTE_SIZE, Operation.ANDNOT, false);
+            case ANDNOT_H3 -> arithmeticOperation(HALFWORD_SIZE, Operation.ANDNOT, false);
+            case ANDNOT_W3 -> arithmeticOperation(WORD_SIZE, Operation.ANDNOT, false);
 
-            case XOR_B2 -> HOW_TO_NAME_THIS(BYTE_SIZE, Operation.XOR, true);
-            case XOR_H2 -> HOW_TO_NAME_THIS(HALFWORD_SIZE, Operation.XOR, true);
-            case XOR_W2 -> HOW_TO_NAME_THIS(WORD_SIZE, Operation.XOR, true);
-            case XOR_B3 -> HOW_TO_NAME_THIS(BYTE_SIZE, Operation.XOR, false);
-            case XOR_H3 -> HOW_TO_NAME_THIS(HALFWORD_SIZE, Operation.XOR, false);
-            case XOR_W3 -> HOW_TO_NAME_THIS(WORD_SIZE, Operation.XOR, false);
+            case XOR_B2 -> arithmeticOperation(BYTE_SIZE, Operation.XOR, true);
+            case XOR_H2 -> arithmeticOperation(HALFWORD_SIZE, Operation.XOR, true);
+            case XOR_W2 -> arithmeticOperation(WORD_SIZE, Operation.XOR, true);
+            case XOR_B3 -> arithmeticOperation(BYTE_SIZE, Operation.XOR, false);
+            case XOR_H3 -> arithmeticOperation(HALFWORD_SIZE, Operation.XOR, false);
+            case XOR_W3 -> arithmeticOperation(WORD_SIZE, Operation.XOR, false);
 
-            case ADD_B2 -> HOW_TO_NAME_THIS(BYTE_SIZE, Operation.ADD, true);
-            case ADD_H2 -> add_h2(); //TODO: @Cleanup make everything use the same Function
-            case ADD_W2 -> add_w2();
+            case ADD_B2 -> arithmeticOperation(BYTE_SIZE, Operation.ADD, true);
+            case ADD_H2 -> arithmeticOperation(HALFWORD_SIZE, Operation.ADD, true);
+            case ADD_W2 -> arithmeticOperation(WORD_SIZE, Operation.ADD, true);
             case ADD_F2 -> {
             }
             case ADD_D2 -> {
             }
-            case ADD_B3 -> HOW_TO_NAME_THIS(BYTE_SIZE, Operation.ADD, false);
-            case ADD_H3 -> HOW_TO_NAME_THIS(HALFWORD_SIZE, Operation.ADD, false);
-            case ADD_W3 -> HOW_TO_NAME_THIS(WORD_SIZE, Operation.ADD, false);
+            case ADD_B3 -> arithmeticOperation(BYTE_SIZE, Operation.ADD, false);
+            case ADD_H3 -> arithmeticOperation(HALFWORD_SIZE, Operation.ADD, false);
+            case ADD_W3 -> arithmeticOperation(WORD_SIZE, Operation.ADD, false);
             case ADD_F3 -> {
             }
             case ADD_D3 -> {
             }
-            case SUB_B2 -> sub_b2();
-            case SUB_H2 -> HOW_TO_NAME_THIS(HALFWORD_SIZE, Operation.SUB, true);
-            case SUB_W2 -> HOW_TO_NAME_THIS(WORD_SIZE, Operation.SUB, true);
+            case SUB_B2 -> arithmeticOperation(BYTE_SIZE, Operation.SUB, true);
+            case SUB_H2 -> arithmeticOperation(HALFWORD_SIZE, Operation.SUB, true);
+            case SUB_W2 -> arithmeticOperation(WORD_SIZE, Operation.SUB, true);
             case SUB_F2 -> {
             }
             case SUB_D2 -> {
             }
-            case SUB_B3 -> HOW_TO_NAME_THIS(BYTE_SIZE, Operation.SUB, false);
-            case SUB_H3 -> HOW_TO_NAME_THIS(HALFWORD_SIZE, Operation.SUB, false);
-            case SUB_W3 -> HOW_TO_NAME_THIS(WORD_SIZE, Operation.SUB, false);
+            case SUB_B3 -> arithmeticOperation(BYTE_SIZE, Operation.SUB, false);
+            case SUB_H3 -> arithmeticOperation(HALFWORD_SIZE, Operation.SUB, false);
+            case SUB_W3 -> arithmeticOperation(WORD_SIZE, Operation.SUB, false);
             case SUB_F3 -> {
             }
             case SUB_D3 -> {
             }
 
-            case MULT_B2 -> HOW_TO_NAME_THIS(BYTE_SIZE, Operation.MULT, true);
-            case MULT_H2 -> HOW_TO_NAME_THIS(HALFWORD_SIZE, Operation.MULT, true);
-            case MULT_W2 -> HOW_TO_NAME_THIS(WORD_SIZE, Operation.MULT, true);
+            case MULT_B2 -> arithmeticOperation(BYTE_SIZE, Operation.MULT, true);
+            case MULT_H2 -> arithmeticOperation(HALFWORD_SIZE, Operation.MULT, true);
+            case MULT_W2 -> arithmeticOperation(WORD_SIZE, Operation.MULT, true);
             case MULT_F2 -> {
             }
             case MULT_D2 -> {
             }
-            case MULT_B3 -> HOW_TO_NAME_THIS(BYTE_SIZE, Operation.MULT, false);
-            case MULT_H3 -> HOW_TO_NAME_THIS(HALFWORD_SIZE, Operation.MULT, false);
-            case MULT_W3 -> HOW_TO_NAME_THIS(WORD_SIZE, Operation.MULT, false);
+            case MULT_B3 -> arithmeticOperation(BYTE_SIZE, Operation.MULT, false);
+            case MULT_H3 -> arithmeticOperation(HALFWORD_SIZE, Operation.MULT, false);
+            case MULT_W3 -> arithmeticOperation(WORD_SIZE, Operation.MULT, false);
             case MULT_F3 -> {
             }
             case MULT_D3 -> {
             }
-            case DIV_B2 -> HOW_TO_NAME_THIS(BYTE_SIZE, Operation.DIV, true);
-            case DIV_H2 -> HOW_TO_NAME_THIS(HALFWORD_SIZE, Operation.DIV, true);
-            case DIV_W2 -> HOW_TO_NAME_THIS(WORD_SIZE, Operation.DIV, true);
+            case DIV_B2 -> arithmeticOperation(BYTE_SIZE, Operation.DIV, true);
+            case DIV_H2 -> arithmeticOperation(HALFWORD_SIZE, Operation.DIV, true);
+            case DIV_W2 -> arithmeticOperation(WORD_SIZE, Operation.DIV, true);
             case DIV_F2 -> {
             }
             case DIV_D2 -> {
             }
-            case DIV_B3 -> HOW_TO_NAME_THIS(BYTE_SIZE, Operation.DIV, false);
-            case DIV_H3 -> HOW_TO_NAME_THIS(HALFWORD_SIZE, Operation.DIV, false);
-            case DIV_W3 -> HOW_TO_NAME_THIS(WORD_SIZE, Operation.DIV, false);
+            case DIV_B3 -> arithmeticOperation(BYTE_SIZE, Operation.DIV, false);
+            case DIV_H3 -> arithmeticOperation(HALFWORD_SIZE, Operation.DIV, false);
+            case DIV_W3 -> arithmeticOperation(WORD_SIZE, Operation.DIV, false);
             case DIV_F3 -> {
             }
             case DIV_D3 -> {
@@ -685,10 +685,6 @@ public class VirtualMachine {
     }
 
     public void run() {
-        // Since we increase the PC before we get the Value of the Memory
-        // we have to start at -1
-        //setPC(-1, WORD_SIZE);
-
         while (!programHaltet) {
             executeOneInstruction();
         }
@@ -750,7 +746,7 @@ public class VirtualMachine {
         saveResult(address, WORD_SIZE);
     }
 
-    public void HOW_TO_NAME_THIS(int size, Operation op, boolean twoOperands) {
+    public void arithmeticOperation(int size, Operation op, boolean twoOperands) {
         int a1 = getNextOperand(size);
         int a2 = getNextOperand(size);
         //@Clean this long int switching is annoying,
@@ -767,19 +763,8 @@ public class VirtualMachine {
 
         switch (op) {
             case OR, ANDNOT, XOR -> setOrAndnotXorFlags(result, size);
-            case ADD, SUB -> {
-                setC(result, size);
-                setV(result, size);
-                setZ(result, size);
-                setN(result, size);
-            }
-            case MULT, DIV -> {
-                C = false;
-                setV(result, size);
-                setZ(result, size);
-                setN(result, size);
-            }
-
+            case ADD, SUB -> setAddSubFlags(result, size);
+            case MULT, DIV -> setMultDivFlags(result, size);
         }
 
         if (twoOperands) decPC();
@@ -847,80 +832,17 @@ public class VirtualMachine {
         setN(result, size);
     }
 
-    public void or_2(int size) {
-        int a1 = getNextOperand(size);
-        int a2 = getNextOperand(size);
-        int result = a1 | a2;
-
-        setOrAndnotXorFlags(result, size);
-
-        decPC();
-        saveResult(result, size);
+    private void setAddSubFlags(long result, int size) {
+        setC(result, size);
+        setV(result, size);
+        setZ(result, size);
+        setN(result, size);
     }
 
-    public void or_3(int size) {
-        int a1 = getNextOperand(size);
-        int a2 = getNextOperand(size);
-        int result = a1 | a2;
-
-        setOrAndnotXorFlags(result, size);
-
-        saveResult(result, size);
+    private void setMultDivFlags(long result, int size) {
+        C = false;
+        setV(result, size);
+        setZ(result, size);
+        setN(result, size);
     }
-
-    public void andnot_2(int size) {
-        int a1 = getNextOperand(size);
-        int a2 = getNextOperand(size);
-        int result = (a1 & ~a2);
-
-        setOrAndnotXorFlags(result, size);
-
-        saveResult(result, size);
-    }
-
-    //TODO: GROUP THE ADDS TOGETHER MAYBE?
-    public void add_b2() {
-        int a1 = getNextOperand(BYTE_SIZE);
-        int a2 = getNextOperand(BYTE_SIZE);
-        int result = a1 + a2;
-
-        decPC();
-        saveResult(result, BYTE_SIZE);
-    }
-
-    public void add_h2() {
-        int a1 = getNextOperand(HALFWORD_SIZE);
-        int a2 = getNextOperand(HALFWORD_SIZE);
-        int result = a1 + a2;
-
-        decPC();
-        saveResult(result, HALFWORD_SIZE);
-    }
-
-    public void add_w2() {
-        int a1 = getNextOperand(WORD_SIZE);
-        int a2 = getNextOperand(WORD_SIZE);
-        int result = a1 + a2;
-
-        decPC();
-        saveResult(result, WORD_SIZE);
-    }
-
-    public void add_b3() {
-        int a1 = getNextOperand(1);
-        int a2 = getNextOperand(1);
-        int result = a1 + a2;
-
-        saveResult(result, 1);
-    }
-
-    public void sub_b2() {
-        int a1 = getNextOperand(1);
-        int a2 = getNextOperand(1);
-        int result = a2 - a1;
-
-        decPC();
-        saveResult(result, 1);
-    }
-
 }
