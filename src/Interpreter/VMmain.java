@@ -7,13 +7,13 @@ public class VMmain {
         vm.registers[0] = 2;
         vm.registers[1] = 3;
 
-        vm.run();
+        for (int i = 1; i <= 4; i++) {
+            int n = i * 8;
+            long maxValue = (2L << (i * 8 - 2)) - 1; // 2^(n-1) - 1
+            long minValue = - (2L << (i * 8 - 2));
 
-        System.out.println("Register R0 = " + vm.registers[0]);
-        System.out.println("Register R1 = " + vm.registers[1]);
-        System.out.println("Register R2 = " + vm.registers[2]);
-
-        System.out.println(vm);
+            System.out.println("MAX: " + maxValue + " MIN: " + minValue);
+        }
 
     }
 }

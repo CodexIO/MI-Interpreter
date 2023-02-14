@@ -28,6 +28,9 @@ public enum OpCode {
     CMP_F("CMP", 0x95, 2, FLOAT),
     CMP_D("CMP", 0x96, 2, DOUBLE),
 
+    JV("JV", 0x97, 1, WORD),
+    JNV("JNV", 0x98, 1, WORD),
+
     CLEAR_B("CLEAR", 0x99, 1, BYTE),
     CLEAR_H("CLEAR", 0x9A, 1, HALFWORD),
     CLEAR_W("CLEAR", 0x9B, 1, WORD),

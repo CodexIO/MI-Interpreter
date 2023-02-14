@@ -112,7 +112,9 @@ public class Parser {
             case "SUB" -> parseCommand(command);
             case "MULT" -> parseCommand(command);
             case "DIV" -> parseCommand(command);
-            case "JEQ", "JNE", "JGT", "JGE", "JLT", "JLE" -> parseSingleOpCommand(command);
+            case "JEQ", "JNE", "JGT",
+                    "JGE", "JLT", "JLE",
+                    "JC", "JNC", "JV", "JNV" -> parseSingleOpCommand(command);
             case "JUMP", "CALL" -> parseSingleOpCommand(command);
             case "RET" -> parseZeroOpCommand(command);
             case "PUSHR" -> parseZeroOpCommand(command);

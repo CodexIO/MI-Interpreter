@@ -164,17 +164,27 @@ public class VirtualMachine {
         setSP(value, WORD_SIZE);
     }
 
-    public void setV(int result, int size) {
-        //TODO: @Felix fragen wie genau das gemeint ist.
+    public void setC(long result, int size) {
+        long bIndexMinusOne = result & 1L << (size * 8);
+        C = bIndexMinusOne != 0;
     }
 
-    public void setZ(int result, int size) {
-        result = normaliseResult(result, size);
+    public void setV(long result, int size) {
+        int n = size * 8;
+        long maxValue = (2L << (n - 2)) - 1; // 2^(n-1) - 1
+        long minValue = - (2L << (n - 2));   // - 2^(n-1)
+
+        V = (result > maxValue || result < minValue);
+    }
+
+    public void setZ(long result, int size) {
+        result = normaliseResult((int) result, size);
         Z = (result == 0);
     }
 
-    public void setN(int result, int size) {
-        N = ((result & (0x80 << size * 8)) != 0);
+    public void setN(long result, int size) {
+        long indexOfNegativeBit = (0x80L << (size - 1) * 8);
+        N = ((result & indexOfNegativeBit) != 0);
     }
 
     public int normaliseResult(int result, int size) {
@@ -270,13 +280,12 @@ public class VirtualMachine {
     // Only use this for 1, 2 or 4 Bytes
     public int getMemory(int address, int size) {
         checkSize(size);
-        int result = switch (size) {
+        return switch (size) {
             case 1 -> (byte)  getByte(address);
             case 2 -> (short) getHalfword(address);
             case 4 -> (int)   getWord(address);
             default -> -1;
         };
-        return result;
     }
 
     private int getNextMemory(int size) {
@@ -613,7 +622,7 @@ public class VirtualMachine {
             }
             case ADD_D2 -> {
             }
-            case ADD_B3 -> add_b3();
+            case ADD_B3 -> HOW_TO_NAME_THIS(BYTE_SIZE, Operation.ADD, false);
             case ADD_H3 -> HOW_TO_NAME_THIS(HALFWORD_SIZE, Operation.ADD, false);
             case ADD_W3 -> HOW_TO_NAME_THIS(WORD_SIZE, Operation.ADD, false);
             case ADD_F3 -> {
@@ -663,11 +672,8 @@ public class VirtualMachine {
             }
             case DIV_D3 -> {
             }
-            case JEQ, JNE, JGT, JGE, JLT, JLE -> jumpOnCondition(op);
-            case JC -> {
-            }
-            case JNC -> {
-            }
+            case JEQ, JNE, JGT, JGE, JLT, JLE,
+                    JC, JNC, JV, JNV -> jumpOnCondition(op);
             case JUMP -> jump();
             case CALL -> call();
             case RET -> ret();
@@ -745,20 +751,22 @@ public class VirtualMachine {
     public void HOW_TO_NAME_THIS(int size, Operation op, boolean twoOperands) {
         int a1 = getNextOperand(size);
         int a2 = getNextOperand(size);
-        int result = switch (op) {
+        //@Clean this long int switching is annoying,
+        // Maybe we can work only with int, but not sure if it's possible
+        long result = switch (op) {
             case OR -> a1 | a2;
             case ANDNOT -> a1 & ~ a2;
             case XOR -> a1 ^ a2;
             case ADD -> a1 + a2;
             case SUB -> a2 - a1;
-            case MULT -> a1 * a2;
+            case MULT -> (long) a1 * a2;
             case DIV -> a2 / a1;
         };
 
         switch (op) {
             case OR, ANDNOT, XOR -> setOrAndnotXorFlags(result, size);
             case ADD, SUB -> {
-                //TODO: Set Carry @Felix klären wie Carry sich verhält
+                setC(result, size);
                 setV(result, size);
                 setZ(result, size);
                 setN(result, size);
@@ -773,7 +781,7 @@ public class VirtualMachine {
         }
 
         if (twoOperands) decPC();
-        saveResult(result, size);
+        saveResult((int) result, size);
     }
 
     private void jump() {
@@ -820,6 +828,10 @@ public class VirtualMachine {
             case JGE -> operationResult >= 0;
             case JLT -> operationResult <  0;
             case JLE -> operationResult <= 0;
+            case JC -> C;
+            case JNC -> !C;
+            case JV -> V;
+            case JNV -> !V;
             default -> false;
         };
 
@@ -827,7 +839,7 @@ public class VirtualMachine {
         if (cond) setPC(address, WORD_SIZE);
     }
 
-    private void setOrAndnotXorFlags(int result, int size) {
+    private void setOrAndnotXorFlags(long result, int size) {
         V = false;
         setZ(result, size);
         setN(result, size);
