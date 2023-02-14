@@ -106,20 +106,16 @@ public class Parser {
         Command cmd = switch (command.lexeme) {
             case "HALT" -> parseZeroOpCommand(command);
             case "DD" -> parseDataDefinition(command);
-            case "MOVE" -> parseCommand(command);
+            case "CMP", "MOVE", "MOVEN", "MOVEC" -> parseTwoOpCommand(command);
             case "MOVEA" -> parseMOVEA(command);
+            case "OR", "ANDNOT", "XOR" -> parseCommand(command);
+            case "ADD", "SUB", "MULT", "DIV"-> parseCommand(command);
             case "CLEAR" -> parseCLEAR(command);
-            case "ADD" -> parseCommand(command);
-            case "SUB" -> parseCommand(command);
-            case "MULT" -> parseCommand(command);
-            case "DIV" -> parseCommand(command);
             case "JEQ", "JNE", "JGT",
                     "JGE", "JLT", "JLE",
                     "JC", "JNC", "JV", "JNV" -> parseSingleOpCommand(command);
             case "JUMP", "CALL" -> parseSingleOpCommand(command);
-            case "RET" -> parseZeroOpCommand(command);
-            case "PUSHR" -> parseZeroOpCommand(command);
-            case "POPR" -> parseZeroOpCommand(command);
+            case "RET", "PUSHR", "POPR" -> parseZeroOpCommand(command);
             default -> null;
         };
 
@@ -173,9 +169,6 @@ public class Parser {
 
     private Command parseMOVEA(Token command) {
         int address = currentAddress++;
-
-        //TODO: Check if operands are really always
-        //TODO  2 or 3... Probably not
         int operands = 2;
 
         Operand a1 = parseOperand(WORD);
@@ -229,6 +222,28 @@ public class Parser {
         OpCode op = OpCode.getOpCode(command.lexeme, WORD, 1);
 
         return new AST_SingleOp(op, command.row, address, command.col, -1, a1);
+    }
+
+    private Command parseTwoOpCommand(Token command) {
+        int address = currentAddress++;
+        int operands = 2;
+
+        Token tk = nextToken();
+        //TODO: Check if tk is really a size indicator
+        OpCode.DataType size = getDataType(tk);
+
+        Operand a1 = parseOperand(size);
+        currentAddress += a1.size();
+        eat(COMMA);
+
+        Operand a2 = parseOperand(size);
+        currentAddress += a2.size();
+
+        OpCode op = OpCode.getOpCode(command.lexeme, size, operands);
+
+        //TODO: Think of a convenient way to keep track of current line and row
+        //TODO:                                      |
+        return new AST_Add(op, command.row, address, command.col, -1, a1, a2, null);
     }
 
     private Operand parseOperand(OpCode.DataType size) {
