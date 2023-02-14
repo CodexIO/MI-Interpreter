@@ -62,6 +62,7 @@ public class Lexer {
                 char c = nextChar();
                 while (c != '\n' && c != '\0' && c != ';') c = nextChar();
 
+                if (c == '\0') return;
             }
             else break;
 

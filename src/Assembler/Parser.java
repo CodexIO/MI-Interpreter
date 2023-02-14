@@ -108,6 +108,7 @@ public class Parser {
             case "DD" -> parseDataDefinition(command);
             case "MOVE" -> parseCommand(command);
             case "MOVEA" -> parseMOVEA(command);
+            case "CLEAR" -> parseCLEAR(command);
             case "ADD" -> parseCommand(command);
             case "SUB" -> parseCommand(command);
             case "MULT" -> parseCommand(command);
@@ -190,6 +191,25 @@ public class Parser {
         //TODO: Think of a convenient way to keep track of current line and row
         //TODO:                                      |
         return new AST_Add(op, command.row, address, command.col, -1, a1, a2, null);
+    }
+
+    // @Clean This is almost the same as parseSingleOp
+    // except that here we need to figure out the size first
+    // Maybe factor together
+    private Command parseCLEAR(Token command) {
+        int address = currentAddress++;
+        int operandCount = 1;
+
+        Token tk = nextToken();
+        //TODO: Check if tk is really a size indicator
+        OpCode.DataType size = getDataType(tk);
+
+        Operand a1 = parseOperand(WORD);
+        currentAddress += a1.size();
+
+        OpCode op = OpCode.getOpCode(command.lexeme, size, operandCount);
+
+        return new AST_SingleOp(op, command.row, address, command.col, -1, a1);
     }
 
     private Command parseZeroOpCommand(Token command) {

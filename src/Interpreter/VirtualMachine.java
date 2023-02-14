@@ -230,6 +230,7 @@ public class VirtualMachine {
     private void setRegister(int reg, int size, int value) {
         checkSize(size);
         int mask = getMask(size);
+        int maskNegated = ~mask;
         int result = value & mask;
 
         //TODO: @Felix I'm not sure we want this behaviour in the registers.
@@ -240,7 +241,8 @@ public class VirtualMachine {
             default -> result;
         };*/
         changedRegisters[reg] = true;
-        registers[reg] = result;
+        int regValue = (registers[reg] & maskNegated) + result;
+        registers[reg] = regValue;
     }
 
     private int getNextHalfword() {
