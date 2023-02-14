@@ -380,35 +380,81 @@ public class Parser {
     }
 
     private ImmediateOperand parseImmediateOperand(OpCode.DataType size) {
-        //TODO: Support Floating Point
+        if (size == FLOAT || size == DOUBLE) {
+            return parseFloat(size);
+        }
+
+        //TODO: Maybe put parseFloat and parseInteger together
+        return parseInteger(size);
+    }
+
+    private ImmediateOperand parseFloat(OpCode.DataType size) {
         Token tk = nextToken();
+        float number = 0;
 
         switch(tk.type) {
+            case MINUS -> {
+                tk = nextToken();
+                String floatToParse = tk.lexeme;
+                if (match(POINT)) {
+                    String afterDecimalPoint = peekToken().type == CONSTANT ? nextToken().lexeme : "";
+                    floatToParse = tk.lexeme + "." + afterDecimalPoint;
+                }
+                number = - Float.parseFloat(floatToParse);
+            }
             case CONSTANT -> {
-                int number = Integer.parseInt(tk.lexeme);
-                return new ImmediateOperand(number, size);
+                String floatToParse = tk.lexeme;
+                if (match(POINT)) {
+                    String afterDecimalPoint = peekToken().type == CONSTANT ? nextToken().lexeme : "";
+                    floatToParse = tk.lexeme + "." + afterDecimalPoint;
+                }
+                number = - Float.parseFloat(floatToParse);
             }
             case IDENTIFIER -> {
+                eat(APOSTROPHE);
                 Token num = nextToken();
-                switch (tk.lexeme) {
-                    case "B" -> {
-                        int number = Integer.parseInt(num.lexeme, 2);
-                        return new ImmediateOperand(number, size);
-                    }
-                    case "H" -> {
-                        int number = Integer.parseInt(num.lexeme, 16);
-                        return new ImmediateOperand(number, size);
-                    }
-                    default -> {
-                        //TODO: ERROR
-                    }
-                }
+                int floatSavedInInt = switch (tk.lexeme) {
+                    case "B" -> Integer.parseInt(num.lexeme, 2);
+                    case "H" -> Integer.parseInt(num.lexeme, 16);
+                    default -> 0xCCCC_CCCC; //TODO: ERROR
+                };
+                eat(APOSTROPHE);
+                return new ImmediateOperand(floatSavedInInt, size);
             }
             default -> {
                 //TODO: ERROR
             }
         }
-        return null; //TODO: Remove this
+
+        return new ImmediateOperand(number, size);
+    }
+
+    private ImmediateOperand parseInteger(OpCode.DataType size) {
+        Token tk = nextToken();
+        int number;
+
+        switch(tk.type) {
+            case MINUS -> {
+                tk = nextToken();
+                number = - Integer.parseInt(tk.lexeme);
+            }
+            case CONSTANT -> number = Integer.parseInt(tk.lexeme);
+            case IDENTIFIER -> {
+                eat(APOSTROPHE);
+                Token num = nextToken();
+                number = switch (tk.lexeme) {
+                    case "B" -> Integer.parseInt(num.lexeme, 2);
+                    case "H" -> Integer.parseInt(num.lexeme, 16);
+                    default -> 0xCCCC_CCCC; //TODO: ERROR
+                };
+                eat(APOSTROPHE);
+            }
+            default -> {
+                number = 0xCCCC_CCCC;
+                //TODO: ERROR
+            }
+        }
+        return new ImmediateOperand(number, size);
     }
 
     private void patchLabels() {

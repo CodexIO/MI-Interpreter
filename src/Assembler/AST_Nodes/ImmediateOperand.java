@@ -12,6 +12,10 @@ public class ImmediateOperand implements Operand {
         size = s;
     }
 
+    public ImmediateOperand(float n, OpCode.DataType s) {
+        this(Float.floatToIntBits(n), s);
+    }
+
     @Override
     public byte[] generateMachineCode() {
         if (number >= 0 && number <= 63) return new byte[]{ (byte) number };
@@ -25,8 +29,10 @@ public class ImmediateOperand implements Operand {
         return switch (size) {
             case BYTE -> new byte[]{ op, b4};
             case HALFWORD -> new byte[]{ op, b3, b4};
-            case WORD -> new byte[]{op, b1, b2, b3, b4};
-            default -> null; //TODO FIX THIS
+            case WORD, FLOAT -> new byte[]{op, b1, b2, b3, b4};
+
+            //TODO: Implement Double
+            case DOUBLE, NONE -> throw new UnsupportedOperationException();
         };
     }
 
@@ -36,7 +42,8 @@ public class ImmediateOperand implements Operand {
         return switch(size) {
             case BYTE -> 2;
             case HALFWORD -> 3;
-            case WORD -> 5;
+            case WORD, FLOAT -> 5;
+            case DOUBLE -> 9;
             default -> -1;
         };
     }

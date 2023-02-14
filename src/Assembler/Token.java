@@ -9,6 +9,7 @@ public class Token {
 
     public enum Type {
         COMMA,
+        POINT,
         MINUS,
         PLUS,
         SLASH,

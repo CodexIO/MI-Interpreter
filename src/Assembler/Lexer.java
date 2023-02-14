@@ -185,6 +185,7 @@ public class Lexer {
             case '+' -> newToken(Type.PLUS);
             case '-' -> newToken(Type.MINUS);
             case ',' -> newToken(Type.COMMA);
+            case '.' -> newToken(Type.POINT);
             case '!' -> newToken(Type.BANG);
             case '/' -> newToken(Type.SLASH);
             case ':' -> newToken(Type.COLON);
