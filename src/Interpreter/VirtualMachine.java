@@ -671,10 +671,8 @@ public class VirtualMachine {
             case JUMP -> jump();
             case CALL -> call();
             case RET -> ret();
-            case PUSHR -> {
-            }
-            case POPR -> {
-            }
+            case PUSHR -> pushr();
+            case POPR -> popr();
         }
     }
 
@@ -796,6 +794,22 @@ public class VirtualMachine {
         int address = getMemory(getSP(), WORD_SIZE);
         setPC(address);
         setSP(getSP() + 4);
+    }
+
+    private void pushr() {
+        for (int i = 14; i >= 0; i--) {
+            setSP(getSP() - 4);
+            setMemory(getSP(), 4, getRegister(i));
+        }
+    }
+
+    private void popr() {
+        for (int i = 0; i <= 14; i++) {
+            int regValue = getMemory(getSP(), WORD_SIZE);
+            setRegister(i, WORD_SIZE, regValue);
+
+            setSP(getSP() + 4);
+        }
     }
 
     private void jumpOnCondition(OpCode op) {

@@ -115,6 +115,8 @@ public class Parser {
             case "JEQ", "JNE", "JGT", "JGE", "JLT", "JLE" -> parseSingleOpCommand(command);
             case "JUMP", "CALL" -> parseSingleOpCommand(command);
             case "RET" -> parseZeroOpCommand(command);
+            case "PUSHR" -> parseZeroOpCommand(command);
+            case "POPR" -> parseZeroOpCommand(command);
             default -> null;
         };
 
