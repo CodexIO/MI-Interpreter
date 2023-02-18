@@ -40,9 +40,12 @@ public class VirtualMachine {
     }
 
     // Condition Codes / Flags
-    private boolean C, Z, N, V;
+    private boolean carry;
+    private boolean zero;
+    private boolean negative;
+    private boolean overflow;
 
-    private byte[] memory = new byte[MEMORY_LENGTH];
+    private final byte[] memory = new byte[MEMORY_LENGTH];
     private final boolean[] changedMemory = new boolean[MEMORY_LENGTH];
 
     public int[] registers = new int[NUMBER_OF_REGISTERS]; //TODO: Make registers private again with proper testing
@@ -89,10 +92,10 @@ public class VirtualMachine {
             sb.append(" ");
         }
         return "VirtualMachine {\n" +
-                "  C=" + C +
-                ", Z=" + Z +
-                ", N=" + N +
-                ", V=" + V + "\n" +
+                "  C=" + carry +
+                ", Z=" + zero +
+                ", N=" + negative +
+                ", V=" + overflow + "\n" +
                 "  memory: {" + sb + "\n}\n" +
                 "  registers=" + Arrays.toString(registers) + "\n" +
                 '}';
@@ -104,7 +107,7 @@ public class VirtualMachine {
 
     // Resets the State of the VM, so it can run again
     public void reset() {
-        V = N = Z = C = false;
+        overflow = negative = zero = carry = false;
         Arrays.fill(registers, 0);
 
 
@@ -148,55 +151,47 @@ public class VirtualMachine {
         setRegister(PC_REGISTER, WORD_SIZE, registers[PC_REGISTER] + 1);
     }
 
-    private int getSP(int size) {
-        return getRegister(SP_REGISTER, size);
-    }
-
     private int getSP() {
-        return getSP(WORD_SIZE);
-    }
-
-    private void setSP(int value, int size) {
-        setRegister(SP_REGISTER, size, value);
+        return getRegister(SP_REGISTER, WORD_SIZE);
     }
 
     private void setSP(int value) {
-        setSP(value, WORD_SIZE);
+        setRegister(SP_REGISTER, WORD_SIZE, value);
     }
 
-    public void setC(long result, int size) {
+    public void setCarry(long result, int size) {
         long bIndexMinusOne = result & 1L << (size * 8);
-        C = bIndexMinusOne != 0;
+        carry = bIndexMinusOne != 0;
     }
 
-    public void setV(long result, int size) {
+    public void setOverflow(long result, int size) {
         int n = size * 8;
         long maxValue = (1L << (n - 1)) - 1; // 2^(n-1) - 1
         long minValue = - (1L << (n - 1));   // - 2^(n-1)
 
-        V = (result > maxValue || result < minValue);
+        overflow = (result > maxValue || result < minValue);
     }
 
-    public void setV(double result) {
+    public void setOverflow(double result) {
         //TODO: IMPLEMENT ME
     }
 
-    public void setZ(long result, int size) {
+    public void setZero(long result, int size) {
         result = normaliseResult((int) result, size);
-        Z = (result == 0);
+        zero = (result == 0);
     }
 
-    public void setZ(double result) {
-        Z = (result == 0);
+    public void setZero(double result) {
+        zero = (result == 0);
     }
 
-    public void setN(long result, int size) {
+    public void setNegative(long result, int size) {
         long indexOfNegativeBit = (0x80L << (size - 1) * 8);
-        N = ((result & indexOfNegativeBit) != 0);
+        negative = ((result & indexOfNegativeBit) != 0);
     }
 
-    public void setN(double result) {
-        N = result < 0;
+    public void setNegative(double result) {
+        negative = result < 0;
     }
 
     public int normaliseResult(int result, int size) {
@@ -256,7 +251,7 @@ public class VirtualMachine {
         int maskNegated = ~mask;
         int result = value & mask;
 
-        //TODO: @Felix I'm not sure we want this behaviour in the registers.
+        //@Feature I'm not sure we want this behaviour in the registers.
         //       Antwort: Eventuell später in seperaten Registern anzeigen
         /*result = switch(size) {
             case 1 -> (byte)  result;
@@ -321,7 +316,7 @@ public class VirtualMachine {
         return switch (size) {
             case 1 -> (byte)  getByte(address);
             case 2 -> (short) getHalfword(address);
-            case 4 -> (int)   getWord(address);
+            case 4 ->         getWord(address);
             default -> -1;
         };
     }
@@ -334,8 +329,6 @@ public class VirtualMachine {
         return result;
     }
 
-    //TODO: CHECK IF getMemory and setMemory use the correct Endianness.
-    // Only use this for 1, 2 or 4 Bytes
     private void setMemory(int address, int size, long result) {
         checkSize(size);
         switch (size) {
@@ -391,15 +384,12 @@ public class VirtualMachine {
             case AddressType.SMALL_DIRECT_OPERAND -> {
                 return (b & 0x3F);
             }
-            // Register Addressing || Relative Addressing a + !Rx, where a = 0
             case AddressType.REGISTER_ADDRESSING, AddressType.RELATIVE_ADDRESSING_WITH_ZERO -> {
                 return getRegister(reg, operandSize);
             }
-
             case AddressType.STACK_ADDRESSING_WITH_MINUS -> {
                 return computeStackAddressingWithMinus(reg, operandSize);
             }
-
             case AddressType.BIG_DIRECT_OPERAND_OR_STACK_ADDRESSING_WITH_PLUS -> {
                 // Direct Operand bigger than 63
                 if (reg == 15) {
@@ -418,20 +408,14 @@ public class VirtualMachine {
                     return address;
                 }
             }
-
-            // Absolute Addressing
             case AddressType.ABSOLUT_ADDRESS -> {
                 assert((b & 0x0F) == 15); //Not sure why the rest of the byte has to be 15
 
                 return getNextWord();
             }
-
-            // Relative Addressing a + !Rx, where a fits into one byte
             case AddressType.RELATIVE_ADDRESSING_WITH_BYTE -> {
                 return computeRelativeAddressing(reg, BYTE_SIZE);
             }
-
-            // Relative Addressing a + !Rx, where a fits into two byte
             case AddressType.RELATIVE_ADDRESSING_WITH_HALFWORD -> {
                 return computeRelativeAddressing(reg, HALFWORD_SIZE);
             }
@@ -450,8 +434,6 @@ public class VirtualMachine {
             case AddressType.INDIRECT_ADDRESSING_WITH_WORD -> {
                 return computeIndirectAddressing(reg, WORD_SIZE);
             }
-
-            //default -> assert(false);
         }
         //TODO: ERROR HERE
         return -1;
@@ -468,18 +450,16 @@ public class VirtualMachine {
 
         switch (addressType) {
             // Direct Operand between 0 and 63
-            case AddressType.SMALL_DIRECT_OPERAND: {
+            case AddressType.SMALL_DIRECT_OPERAND -> {
                 return (b & 0x3F);
             }
-            // Register Addressing
-            case AddressType.REGISTER_ADDRESSING: {
+            case AddressType.REGISTER_ADDRESSING -> {
                 if (operandSize == DOUBLE_SIZE) return getWideRegister(reg);
                 return getRegister(reg, operandSize);
             }
-            case AddressType.RELATIVE_ADDRESSING_WITH_ZERO, AddressType.STACK_ADDRESSING_WITH_MINUS: {
+            case AddressType.RELATIVE_ADDRESSING_WITH_ZERO, AddressType.STACK_ADDRESSING_WITH_MINUS ->
                 address = computeAddress(b, addressType, reg, operandSize);
-            } break;
-            case AddressType.BIG_DIRECT_OPERAND_OR_STACK_ADDRESSING_WITH_PLUS: {
+            case AddressType.BIG_DIRECT_OPERAND_OR_STACK_ADDRESSING_WITH_PLUS -> {
                 // Direct Operand bigger than 63
                 if (reg == 15) {
                     long operand = 0;
@@ -498,27 +478,19 @@ public class VirtualMachine {
                     return result;
                 }
             }
-            // Absolute Addressing
-            case AddressType.ABSOLUT_ADDRESS: {
-                assert((b & 0x0F) == 15); //Not sure why the rest of the byte has to be 15
+            case AddressType.ABSOLUT_ADDRESS -> {
+                assert ((b & 0x0F) == 15); //Not sure why the rest of the byte has to be 15
                 address = computeAddress(b, addressType, reg, operandSize);
-            } break;
-            case AddressType.RELATIVE_ADDRESSING_WITH_BYTE,
-                    AddressType.INDIRECT_ADDRESSING_WITH_BYTE: {
+            }
+            case AddressType.RELATIVE_ADDRESSING_WITH_BYTE, AddressType.INDIRECT_ADDRESSING_WITH_BYTE ->
                 address = computeAddress(b, addressType, reg, BYTE_SIZE);
-            } break;
-            case AddressType.RELATIVE_ADDRESSING_WITH_HALFWORD,
-                    AddressType.INDIRECT_ADDRESSING_WITH_HALFWORD: {
+            case AddressType.RELATIVE_ADDRESSING_WITH_HALFWORD, AddressType.INDIRECT_ADDRESSING_WITH_HALFWORD ->
                 address = computeAddress(b, addressType, reg, HALFWORD_SIZE);
-            } break;
-            case AddressType.RELATIVE_ADDRESSING_WITH_WORD,
-                    AddressType.INDIRECT_ADDRESSING_WITH_WORD: {
+            case AddressType.RELATIVE_ADDRESSING_WITH_WORD, AddressType.INDIRECT_ADDRESSING_WITH_WORD ->
                 address = computeAddress(b, addressType, reg, WORD_SIZE);
-            } break;
-            case AddressType.INDICATED_RELATIVE_ADDRESSING: {
+            case AddressType.INDICATED_RELATIVE_ADDRESSING -> {
                 //TODO: Implement me
-            } break;
-            default: assert(false);
+            }
         }
 
         if (operandSize == DOUBLE_SIZE) return getWideWord(address);
@@ -559,9 +531,8 @@ public class VirtualMachine {
                 if (operandSize == DOUBLE_SIZE) setRegister(reg, result);
                 else setRegister(reg, operandSize, (int) result);
             }
-            case AddressType.RELATIVE_ADDRESSING_WITH_ZERO -> {
+            case AddressType.RELATIVE_ADDRESSING_WITH_ZERO ->
                 setMemory(regValue, operandSize, result);
-            }
             case AddressType.STACK_ADDRESSING_WITH_MINUS -> {
                 int address = computeStackAddressingWithMinus(reg, operandSize);
                 setMemory(address, operandSize, result);
@@ -578,14 +549,10 @@ public class VirtualMachine {
                 int address = getNextWord();
                 setMemory(address, operandSize, result);
             }
-
-            // Relative Addressing a + !Rx, where a fits into one byte
             case AddressType.RELATIVE_ADDRESSING_WITH_BYTE -> {
                 int a = getNextMemory(BYTE_SIZE);
                 setMemory(a + regValue, operandSize, result);
             }
-
-            // Relative Addressing a + !Rx, where a fits into two byte
             case AddressType.RELATIVE_ADDRESSING_WITH_HALFWORD -> {
                 int a = getNextMemory(HALFWORD_SIZE);
                 setMemory(a + regValue, operandSize, result);
@@ -743,9 +710,9 @@ public class VirtualMachine {
     public void move(int size) {
         long a1 = getNextOperand(size);
 
-        V = false;
-        setZ(a1, size);
-        setN(a1, size);
+        overflow = false;
+        setZero(a1, size);
+        setNegative(a1, size);
 
         saveResult(a1, size);
     }
@@ -754,40 +721,40 @@ public class VirtualMachine {
         long a1 = getNextOperand(size);
         long a2 = getNextOperand(size);
 
-        Z = (a1 == a2);
-        N = (a1 < a2);
+        zero = (a1 == a2);
+        negative = (a1 < a2);
     }
 
     private void cmp_F() {
         float a1 = getNextOperandAsFloat();
         float a2 = getNextOperandAsFloat();
 
-        Z = (a1 == a2);
-        N = (a1 < a2);
+        zero = (a1 == a2);
+        negative = (a1 < a2);
     }
 
     private void cmp_D() {
         double a1 = getNextOperandAsDouble();
         double a2 = getNextOperandAsDouble();
 
-        Z = (a1 == a2);
-        N = (a1 < a2);
+        zero = (a1 == a2);
+        negative = (a1 < a2);
     }
 
     private void clear(int size) {
-        V = false;
-        Z = true;
-        N = false;
+        overflow = false;
+        zero = true;
+        negative = false;
         saveResult(0, size);
     }
 
     private void moven_I(int size) {
         long result = -getNextOperand(size);
 
-        C = false;
-        setV(result, size);
-        setZ(result, size);
-        setN(result, size);
+        carry = false;
+        setOverflow(result, size);
+        setZero(result, size);
+        setNegative(result, size);
 
         saveResult(result, size);
     }
@@ -795,10 +762,10 @@ public class VirtualMachine {
     private void moven_F() {
         float result = getNextOperandAsFloat();
 
-        C = false;
-        V = false;
-        setZ(result);
-        setN(result);
+        carry = false;
+        overflow = false;
+        setZero(result);
+        setNegative(result);
 
         saveResult(result);
     }
@@ -806,10 +773,10 @@ public class VirtualMachine {
     private void moven_D() {
         double result = getNextOperandAsDouble();
 
-        C = false;
-        V = false;
-        setZ(result);
-        setN(result);
+        carry = false;
+        overflow = false;
+        setZero(result);
+        setNegative(result);
 
         saveResult(result);
     }
@@ -817,9 +784,9 @@ public class VirtualMachine {
     private void movec(int size) {
         long a1 = ~ getNextOperand(size);
 
-        V = false;
-        setZ(a1, size);
-        setN(a1, size);
+        overflow = false;
+        setZero(a1, size);
+        setNegative(a1, size);
 
         saveResult(a1, size);
     }
@@ -935,10 +902,10 @@ public class VirtualMachine {
             case JGE -> operationResult >= 0;
             case JLT -> operationResult <  0;
             case JLE -> operationResult <= 0;
-            case JC -> C;
-            case JNC -> !C;
-            case JV -> V;
-            case JNV -> !V;
+            case JC -> carry;
+            case JNC -> !carry;
+            case JV -> overflow;
+            case JNV -> !overflow;
             default -> false;
         };
 
@@ -947,29 +914,29 @@ public class VirtualMachine {
     }
 
     private void setOrAndnotXorFlags(long result, int size) {
-        V = false;
-        setZ(result, size);
-        setN(result, size);
+        overflow = false;
+        setZero(result, size);
+        setNegative(result, size);
     }
 
     private void setAddSubFlags(long result, int size) {
-        setC(result, size);
-        setV(result, size);
-        setZ(result, size);
-        setN(result, size);
+        setCarry(result, size);
+        setOverflow(result, size);
+        setZero(result, size);
+        setNegative(result, size);
     }
 
     private void setFlags(double result) {
-        C = false;
-        setV(result);
-        setZ(result);
-        setN(result);
+        carry = false;
+        setOverflow(result);
+        setZero(result);
+        setNegative(result);
     }
 
     private void setMultDivFlags(long result, int size) {
-        C = false;
-        setV(result, size);
-        setZ(result, size);
-        setN(result, size);
+        carry = false;
+        setOverflow(result, size);
+        setZero(result, size);
+        setNegative(result, size);
     }
 }
