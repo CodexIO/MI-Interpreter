@@ -839,7 +839,7 @@ public class VirtualMachine {
             case XOR -> a1 ^ a2;
             case ADD -> a1 + a2;
             case SUB -> a2 - a1;
-            case MULT -> (long) a1 * a2;
+            case MULT -> a1 * a2;
             case DIV -> a2 / a1;
         };
 
@@ -866,14 +866,9 @@ public class VirtualMachine {
             case DIV -> a2 / a1;
             default -> 0;
         };
-
-        switch (op) {
-            case ADD, SUB -> setAddSubFlags(result);
-            case MULT, DIV -> setMultDivFlags(result);
-        }
+        setFlags(result);
 
         if (twoOperands) decPC();
-
         saveResult(result);
     }
 
@@ -890,14 +885,9 @@ public class VirtualMachine {
             case DIV -> a2 / a1;
             default -> 0;
         };
-
-        switch (op) {
-            case ADD, SUB -> setAddSubFlags(result);
-            case MULT, DIV -> setMultDivFlags(result);
-        }
+        setFlags(result);
 
         if (twoOperands) decPC();
-
         saveResult(result);
     }
 
@@ -969,7 +959,7 @@ public class VirtualMachine {
         setN(result, size);
     }
 
-    private void setAddSubFlags(double result) {
+    private void setFlags(double result) {
         C = false;
         setV(result);
         setZ(result);
@@ -981,12 +971,5 @@ public class VirtualMachine {
         setV(result, size);
         setZ(result, size);
         setN(result, size);
-    }
-
-    private void setMultDivFlags(double result) {
-        C = false;
-        setV(result);
-        setZ(result);
-        setN(result);
     }
 }
