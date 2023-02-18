@@ -19,6 +19,9 @@ public class RelativeAddress implements Operand {
     }
 
     public RelativeAddress(int o, int r, String l) {
+        //TODO: Right now when we don't know a label position yet to compute it's relative address,
+        //      we call this constructor. But the offset(int o) passed in here is not the right offset
+        //      yet, so the size computation could be wrong. FIX THIS.
         this(o, r);
         labelName = l;
     }

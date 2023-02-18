@@ -8,7 +8,9 @@ import Assembler.OpCode;
 
 public class AST_Add extends Command {
 
-    Operand a1, a2, a3;
+    Operand a1;
+    Operand a2;
+    Operand a3;
     boolean three = false;
 
     public AST_Add(OpCode op, int row, int address, int beg, int end, Operand a1, Operand a2) {
@@ -22,11 +24,6 @@ public class AST_Add extends Command {
         this.a3 = a3;
         three = (a3 != null);
     }
-
-    /*@Override
-    public byte getOpCode() {
-        return (byte) op.opcode; //TODO Generate the right OpCode here
-    }*/
 
     @Override
     public byte[] generateMachineCode() {

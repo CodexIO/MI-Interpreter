@@ -24,7 +24,7 @@ public class MemoryPanel extends JPanel {
     //TODO: @Slow Regenerating the Memory Representation String everytime the
     //            memory changes seems awfully slow. Is there a better solution?
     //            Vorschlag: JList? oder noch mal gucken, wie es der alte macht
-    // @Felix Fragen
+    //
     public void renderMemory() {
         StringBuilder sb = new StringBuilder();
         for(int i = 0; i < VirtualMachine.MEMORY_LENGTH; i++) {

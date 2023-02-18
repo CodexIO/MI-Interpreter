@@ -97,6 +97,7 @@ public class Parser {
 
     private void parseLabel(Token name) {
         eat(COLON);
+        //TODO: Check if a label was already defined.
         labelAddresses.put(name.lexeme, currentAddress);
     }
 
@@ -388,9 +389,15 @@ public class Parser {
         return parseInteger(size);
     }
 
+    //TODO: Here and in parseInteger, check if provided number fits into the specified size
     private ImmediateOperand parseFloat(OpCode.DataType size) {
+        // @Note: We simply parse everything as a Double first
+        // and later cast it to a float if a float is specified
+        // TODO: @Felix ist das okay so?
+
         Token tk = nextToken();
-        float number = 0;
+        double number = 0;
+
 
         switch(tk.type) {
             case MINUS -> {
@@ -408,25 +415,26 @@ public class Parser {
                     String afterDecimalPoint = peekToken().type == CONSTANT ? nextToken().lexeme : "";
                     floatToParse = tk.lexeme + "." + afterDecimalPoint;
                 }
-                number = - Float.parseFloat(floatToParse);
+                number = Float.parseFloat(floatToParse);
             }
             case IDENTIFIER -> {
                 eat(APOSTROPHE);
                 Token num = nextToken();
-                int floatSavedInInt = switch (tk.lexeme) {
-                    case "B" -> Integer.parseInt(num.lexeme, 2);
-                    case "H" -> Integer.parseInt(num.lexeme, 16);
+                long floatSavedInLong = switch (tk.lexeme) {
+                    case "B" -> Long.parseLong(num.lexeme, 2);
+                    case "H" -> Long.parseLong(num.lexeme, 16);
                     default -> 0xCCCC_CCCC; //TODO: ERROR
                 };
                 eat(APOSTROPHE);
-                return new ImmediateOperand(floatSavedInInt, size);
+                return new ImmediateOperand(floatSavedInLong, size);
             }
             default -> {
                 //TODO: ERROR
             }
         }
 
-        return new ImmediateOperand(number, size);
+        if (size == FLOAT) return new ImmediateOperand((float) number);
+        else return new ImmediateOperand(number);
     }
 
     private ImmediateOperand parseInteger(OpCode.DataType size) {

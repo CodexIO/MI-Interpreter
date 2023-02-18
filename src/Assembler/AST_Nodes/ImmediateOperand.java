@@ -4,16 +4,20 @@ import Assembler.OpCode;
 
 public class ImmediateOperand implements Operand {
 
-    int number;
+    long number;
     OpCode.DataType size;
 
-    public ImmediateOperand(int n, OpCode.DataType s) {
+    public ImmediateOperand(long n, OpCode.DataType s) {
         number = n;
         size = s;
     }
 
-    public ImmediateOperand(float n, OpCode.DataType s) {
-        this(Float.floatToIntBits(n), s);
+    public ImmediateOperand(float n) {
+        this(Float.floatToIntBits(n), OpCode.DataType.FLOAT);
+    }
+
+    public ImmediateOperand(double n) {
+        this(Double.doubleToLongBits(n), OpCode.DataType.DOUBLE);
     }
 
     @Override
@@ -21,18 +25,20 @@ public class ImmediateOperand implements Operand {
         if (number >= 0 && number <= 63) return new byte[]{ (byte) number };
 
         byte op = (byte) 0x8F;
-        byte b1 = (byte) (number >>> 24);
-        byte b2 = (byte) (number >>> 16);
-        byte b3 = (byte) (number >>> 8);
-        byte b4 = (byte) (number & 0xFF);
+        byte b1 = (byte) (number >>> 7 * 8);
+        byte b2 = (byte) (number >>> 6 * 8);
+        byte b3 = (byte) (number >>> 5 * 8);
+        byte b4 = (byte) (number >>> 4 * 8);
+        byte b5 = (byte) (number >>> 3 * 8);
+        byte b6 = (byte) (number >>> 2 * 8);
+        byte b7 = (byte) (number >>> 8);
+        byte b8 = (byte) (number & 0xFF);
 
         return switch (size) {
-            case BYTE -> new byte[]{ op, b4};
-            case HALFWORD -> new byte[]{ op, b3, b4};
-            case WORD, FLOAT -> new byte[]{op, b1, b2, b3, b4};
-
-            //TODO: Implement Double
-            case DOUBLE, NONE -> throw new UnsupportedOperationException();
+            case BYTE -> new byte[]{ op, b8};
+            case HALFWORD -> new byte[]{ op, b7, b8};
+            case WORD, FLOAT -> new byte[]{op, b5, b6, b7, b8};
+            case DOUBLE, NONE -> new byte[]{op, b1, b2, b3, b4, b5, b6, b7, b8};
         };
     }
 

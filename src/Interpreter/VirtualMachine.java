@@ -49,7 +49,7 @@ public class VirtualMachine {
     public final boolean[] changedRegisters = new boolean[NUMBER_OF_REGISTERS];
 
     private boolean programHaltet;
-    private int operationResult;
+    private long operationResult;
 
     public VirtualMachine(int begin, byte[] memory) {
         //TODO: Handle bad input
@@ -171,10 +171,14 @@ public class VirtualMachine {
 
     public void setV(long result, int size) {
         int n = size * 8;
-        long maxValue = (2L << (n - 2)) - 1; // 2^(n-1) - 1
-        long minValue = - (2L << (n - 2));   // - 2^(n-1)
+        long maxValue = (1L << (n - 1)) - 1; // 2^(n-1) - 1
+        long minValue = - (1L << (n - 1));   // - 2^(n-1)
 
         V = (result > maxValue || result < minValue);
+    }
+
+    public void setV(double result) {
+        //TODO: IMPLEMENT ME
     }
 
     public void setZ(long result, int size) {
@@ -182,9 +186,17 @@ public class VirtualMachine {
         Z = (result == 0);
     }
 
+    public void setZ(double result) {
+        Z = (result == 0);
+    }
+
     public void setN(long result, int size) {
         long indexOfNegativeBit = (0x80L << (size - 1) * 8);
         N = ((result & indexOfNegativeBit) != 0);
+    }
+
+    public void setN(double result) {
+        N = result < 0;
     }
 
     public int normaliseResult(int result, int size) {
@@ -203,7 +215,7 @@ public class VirtualMachine {
         return (result & 0xFF);
     }
 
-    private void setByte(int address, int number) {
+    private void setByte(int address, long number) {
         changedMemory[address] = true;
         memory[address] = (byte) (number & 0x000000FF);
     }
@@ -223,8 +235,19 @@ public class VirtualMachine {
         return registers[reg] & mask;
     }
 
+    private long getWideRegister(int reg) {
+        long result = getRegister(reg, WORD_SIZE);
+        result = result << 32 + getRegister((reg + 1) % 16);
+        return result;
+    }
+
     private int getRegister(int reg) {
         return getRegister(reg, WORD_SIZE);
+    }
+
+    private void setRegister(int reg, long value) {
+        setRegister(reg, WORD_SIZE, (int) (value >>> 32));
+        setRegister((reg + 1) % 16, WORD_SIZE, (int) value);
     }
 
     private void setRegister(int reg, int size, int value) {
@@ -234,6 +257,7 @@ public class VirtualMachine {
         int result = value & mask;
 
         //TODO: @Felix I'm not sure we want this behaviour in the registers.
+        //       Antwort: Eventuell später in seperaten Registern anzeigen
         /*result = switch(size) {
             case 1 -> (byte)  result;
             case 2 -> (short) result;
@@ -257,7 +281,7 @@ public class VirtualMachine {
         return a;
     }
 
-    private void setHalfword(int address, int number) {
+    private void setHalfword(int address, long number) {
         setByte(address, number >>> 8);
         setByte(address + 1, number);
     }
@@ -274,9 +298,21 @@ public class VirtualMachine {
         return a;
     }
 
-    private void setWord(int address, int number) {
+    private void setWord(int address, long number) {
         setHalfword(address, number >>> 16);
         setHalfword(address + 2, number);
+    }
+
+    // This should only be used for Doubles
+    private long getWideWord(int address) {
+        long a = getWord(address);
+        a = (a << 32) + getWord(address + 4);
+        return a;
+    }
+
+    private void setWideWord(int address, long number) {
+        setWord(address, number >>> 32);
+        setWord(address + 4, number);
     }
 
     // Only use this for 1, 2 or 4 Bytes
@@ -290,7 +326,9 @@ public class VirtualMachine {
         };
     }
 
+
     private int getNextMemory(int size) {
+        //@Note: This function should never be called with size 8 which is only for Doubles
         int result = getMemory(getPC(size), size);
         setPC(getPC(size) + size, size);
         return result;
@@ -298,13 +336,13 @@ public class VirtualMachine {
 
     //TODO: CHECK IF getMemory and setMemory use the correct Endianness.
     // Only use this for 1, 2 or 4 Bytes
-    private void setMemory(int address, int size, int result) {
+    private void setMemory(int address, int size, long result) {
         checkSize(size);
         switch (size) {
             case 1 -> setByte(address, result);
             case 2 -> setHalfword(address, result);
             case 4 -> setWord(address, result);
-            //TODO: Maybe need to support 8 here for DOUBLES
+            case 8 -> setWideWord(address, result);
         }
     }
 
@@ -319,16 +357,16 @@ public class VirtualMachine {
         return address;
     }
 
-    private int computeRelativeAddressing(int reg, int size_of_a) {
+    private int computeRelativeAddressing(int reg, int sizeOfA) {
         // It's important that we get the regValue before we call getNextMemory,
         // because getNextMemory changes the PC which we don't want here.
         int regValue = getRegister(reg);
-        int a = getNextMemory(size_of_a);
+        int a = getNextMemory(sizeOfA);
         return regValue + a;
     }
 
-    private int computeIndirectAddressing(int reg, int size_of_a) {
-        int a = getNextMemory(size_of_a);
+    private int computeIndirectAddressing(int reg, int sizeOfA) {
+        int a = getNextMemory(sizeOfA);
         int address1 = getRegister(reg) + a;
         return getAddress(address1);
     }
@@ -419,7 +457,7 @@ public class VirtualMachine {
         return -1;
     }
 
-    private int getNextOperand(int operandSize) {
+    private long getNextOperand(int operandSize) {
         int b = getNextByte();
 
         int reg = (b & 0x0F);
@@ -435,6 +473,7 @@ public class VirtualMachine {
             }
             // Register Addressing
             case AddressType.REGISTER_ADDRESSING: {
+                if (operandSize == DOUBLE_SIZE) return getWideRegister(reg);
                 return getRegister(reg, operandSize);
             }
             case AddressType.RELATIVE_ADDRESSING_WITH_ZERO, AddressType.STACK_ADDRESSING_WITH_MINUS: {
@@ -443,7 +482,7 @@ public class VirtualMachine {
             case AddressType.BIG_DIRECT_OPERAND_OR_STACK_ADDRESSING_WITH_PLUS: {
                 // Direct Operand bigger than 63
                 if (reg == 15) {
-                    int operand = 0;
+                    long operand = 0;
                     for (int i = 0; i < operandSize; i++) {
                         int op = getNextByte();
                         operand = (operand << 8) + op;
@@ -464,16 +503,16 @@ public class VirtualMachine {
                 assert((b & 0x0F) == 15); //Not sure why the rest of the byte has to be 15
                 address = computeAddress(b, addressType, reg, operandSize);
             } break;
-            case AddressType.RELATIVE_ADDRESSING_WITH_BYTE:
-            case AddressType.INDIRECT_ADDRESSING_WITH_BYTE: {
+            case AddressType.RELATIVE_ADDRESSING_WITH_BYTE,
+                    AddressType.INDIRECT_ADDRESSING_WITH_BYTE: {
                 address = computeAddress(b, addressType, reg, BYTE_SIZE);
             } break;
-            case AddressType.RELATIVE_ADDRESSING_WITH_HALFWORD:
-            case AddressType.INDIRECT_ADDRESSING_WITH_HALFWORD: {
+            case AddressType.RELATIVE_ADDRESSING_WITH_HALFWORD,
+                    AddressType.INDIRECT_ADDRESSING_WITH_HALFWORD: {
                 address = computeAddress(b, addressType, reg, HALFWORD_SIZE);
             } break;
-            case AddressType.RELATIVE_ADDRESSING_WITH_WORD:
-            case AddressType.INDIRECT_ADDRESSING_WITH_WORD: {
+            case AddressType.RELATIVE_ADDRESSING_WITH_WORD,
+                    AddressType.INDIRECT_ADDRESSING_WITH_WORD: {
                 address = computeAddress(b, addressType, reg, WORD_SIZE);
             } break;
             case AddressType.INDICATED_RELATIVE_ADDRESSING: {
@@ -482,10 +521,31 @@ public class VirtualMachine {
             default: assert(false);
         }
 
-        return getMemory(address, operandSize);
+        if (operandSize == DOUBLE_SIZE) return getWideWord(address);
+        else return getMemory(address, operandSize);
     }
 
-    private void saveResult(int result, int operandSize) {
+    private double getNextOperandAsDouble() {
+        long bits = (int) getNextOperand(FLOAT_SIZE);
+        return Double.longBitsToDouble(bits);
+    }
+
+    private float getNextOperandAsFloat() {
+        int bits = (int) getNextOperand(FLOAT_SIZE);
+        return Float.intBitsToFloat(bits);
+    }
+
+    private void saveResult(float result) {
+        int bits = Float.floatToIntBits(result);
+        saveResult(bits, FLOAT_SIZE);
+    }
+
+    private void saveResult(double result) {
+        long bits = Double.doubleToLongBits(result);
+        saveResult(bits, DOUBLE_SIZE);
+    }
+
+    private void saveResult(long result, int operandSize) {
         this.operationResult = result;
         int b = getNextByte();
 
@@ -496,7 +556,8 @@ public class VirtualMachine {
 
         switch (addressType) {
             case AddressType.REGISTER_ADDRESSING -> {
-                setRegister(reg, operandSize, result);
+                if (operandSize == DOUBLE_SIZE) setRegister(reg, result);
+                else setRegister(reg, operandSize, (int) result);
             }
             case AddressType.RELATIVE_ADDRESSING_WITH_ZERO -> {
                 setMemory(regValue, operandSize, result);
@@ -563,33 +624,25 @@ public class VirtualMachine {
             case CMP_B -> cmp_I(BYTE_SIZE);
             case CMP_H -> cmp_I(HALFWORD_SIZE);
             case CMP_W -> cmp_I(WORD_SIZE);
+            case CMP_F -> cmp_F();
+            case CMP_D -> cmp_D();
 
-            case CMP_F -> {
-            }
-            case CMP_D -> {
-            }
             case CLEAR_B -> clear(BYTE_SIZE);
             case CLEAR_H -> clear(HALFWORD_SIZE);
             case CLEAR_W -> clear(WORD_SIZE);
             case CLEAR_F -> clear(FLOAT_SIZE);
-            case CLEAR_D -> clear(DOUBLE_SIZE);//TODO: Check if 8 Byte work
+            case CLEAR_D -> clear(DOUBLE_SIZE);
 
             case MOVE_B -> move(BYTE_SIZE);
             case MOVE_H -> move(HALFWORD_SIZE);
-            case MOVE_W -> move(WORD_SIZE);
+            case MOVE_W, MOVE_F -> move(WORD_SIZE);
+            case MOVE_D -> move(DOUBLE_SIZE);
 
-            case MOVE_F -> {
-            }
-            case MOVE_D -> {
-            }
             case MOVEN_B -> moven_I(BYTE_SIZE);
             case MOVEN_H -> moven_I(HALFWORD_SIZE);
             case MOVEN_W -> moven_I(WORD_SIZE);
-
-            case MOVEN_F -> {
-            }
-            case MOVEN_D -> {
-            }
+            case MOVEN_F -> moven_F();
+            case MOVEN_D -> moven_D();
             case MOVEC_B -> movec(BYTE_SIZE);
             case MOVEC_H -> movec(HALFWORD_SIZE);
             case MOVEC_W -> movec(WORD_SIZE);
@@ -620,62 +673,54 @@ public class VirtualMachine {
             case ADD_B2 -> arithmeticOperation(BYTE_SIZE, Operation.ADD, true);
             case ADD_H2 -> arithmeticOperation(HALFWORD_SIZE, Operation.ADD, true);
             case ADD_W2 -> arithmeticOperation(WORD_SIZE, Operation.ADD, true);
-            case ADD_F2 -> {
-            }
-            case ADD_D2 -> {
-            }
+            case ADD_F2 -> arithmeticOperationOnFloat(Operation.ADD, true);
+            case ADD_D2 -> arithmeticOperationOnDouble(Operation.ADD, true);
+
             case ADD_B3 -> arithmeticOperation(BYTE_SIZE, Operation.ADD, false);
             case ADD_H3 -> arithmeticOperation(HALFWORD_SIZE, Operation.ADD, false);
             case ADD_W3 -> arithmeticOperation(WORD_SIZE, Operation.ADD, false);
-            case ADD_F3 -> {
-            }
-            case ADD_D3 -> {
-            }
+            case ADD_F3 -> arithmeticOperationOnFloat(Operation.ADD, false);
+            case ADD_D3 -> arithmeticOperationOnDouble(Operation.ADD, false);
+
             case SUB_B2 -> arithmeticOperation(BYTE_SIZE, Operation.SUB, true);
             case SUB_H2 -> arithmeticOperation(HALFWORD_SIZE, Operation.SUB, true);
             case SUB_W2 -> arithmeticOperation(WORD_SIZE, Operation.SUB, true);
-            case SUB_F2 -> {
-            }
-            case SUB_D2 -> {
-            }
+            case SUB_F2 -> arithmeticOperationOnFloat(Operation.SUB, true);
+            case SUB_D2 -> arithmeticOperationOnDouble(Operation.SUB, true);
+
             case SUB_B3 -> arithmeticOperation(BYTE_SIZE, Operation.SUB, false);
             case SUB_H3 -> arithmeticOperation(HALFWORD_SIZE, Operation.SUB, false);
             case SUB_W3 -> arithmeticOperation(WORD_SIZE, Operation.SUB, false);
-            case SUB_F3 -> {
-            }
-            case SUB_D3 -> {
-            }
+            case SUB_F3 -> arithmeticOperationOnFloat(Operation.SUB, false);
+            case SUB_D3 -> arithmeticOperationOnDouble(Operation.SUB, false);
 
             case MULT_B2 -> arithmeticOperation(BYTE_SIZE, Operation.MULT, true);
             case MULT_H2 -> arithmeticOperation(HALFWORD_SIZE, Operation.MULT, true);
             case MULT_W2 -> arithmeticOperation(WORD_SIZE, Operation.MULT, true);
-            case MULT_F2 -> {
-            }
-            case MULT_D2 -> {
-            }
+            case MULT_F2 -> arithmeticOperationOnFloat(Operation.MULT, true);
+            case MULT_D2 -> arithmeticOperationOnDouble(Operation.MULT, true);
+
             case MULT_B3 -> arithmeticOperation(BYTE_SIZE, Operation.MULT, false);
             case MULT_H3 -> arithmeticOperation(HALFWORD_SIZE, Operation.MULT, false);
             case MULT_W3 -> arithmeticOperation(WORD_SIZE, Operation.MULT, false);
-            case MULT_F3 -> {
-            }
-            case MULT_D3 -> {
-            }
+            case MULT_F3 -> arithmeticOperationOnFloat(Operation.MULT, false);
+            case MULT_D3 -> arithmeticOperationOnDouble(Operation.MULT, false);
+
             case DIV_B2 -> arithmeticOperation(BYTE_SIZE, Operation.DIV, true);
             case DIV_H2 -> arithmeticOperation(HALFWORD_SIZE, Operation.DIV, true);
             case DIV_W2 -> arithmeticOperation(WORD_SIZE, Operation.DIV, true);
-            case DIV_F2 -> {
-            }
-            case DIV_D2 -> {
-            }
+            case DIV_F2 -> arithmeticOperationOnFloat(Operation.DIV, true);
+            case DIV_D2 -> arithmeticOperationOnDouble(Operation.DIV, true);
+
             case DIV_B3 -> arithmeticOperation(BYTE_SIZE, Operation.DIV, false);
             case DIV_H3 -> arithmeticOperation(HALFWORD_SIZE, Operation.DIV, false);
             case DIV_W3 -> arithmeticOperation(WORD_SIZE, Operation.DIV, false);
-            case DIV_F3 -> {
-            }
-            case DIV_D3 -> {
-            }
+            case DIV_F3 -> arithmeticOperationOnFloat(Operation.DIV, false);
+            case DIV_D3 -> arithmeticOperationOnDouble(Operation.DIV, false);
+
             case JEQ, JNE, JGT, JGE, JLT, JLE,
                     JC, JNC, JV, JNV -> jumpOnCondition(op);
+
             case JUMP -> jump();
             case CALL -> call();
             case RET -> ret();
@@ -696,7 +741,7 @@ public class VirtualMachine {
     }
 
     public void move(int size) {
-        int a1 = getNextOperand(size);
+        long a1 = getNextOperand(size);
 
         V = false;
         setZ(a1, size);
@@ -705,23 +750,39 @@ public class VirtualMachine {
         saveResult(a1, size);
     }
 
-    public void cmp_I(int size) {
-        int a1 = getNextOperand(size);
-        int a2 = getNextOperand(size);
+    private void cmp_I(int size) {
+        long a1 = getNextOperand(size);
+        long a2 = getNextOperand(size);
 
         Z = (a1 == a2);
         N = (a1 < a2);
     }
 
-    public void clear(int size) {
+    private void cmp_F() {
+        float a1 = getNextOperandAsFloat();
+        float a2 = getNextOperandAsFloat();
+
+        Z = (a1 == a2);
+        N = (a1 < a2);
+    }
+
+    private void cmp_D() {
+        double a1 = getNextOperandAsDouble();
+        double a2 = getNextOperandAsDouble();
+
+        Z = (a1 == a2);
+        N = (a1 < a2);
+    }
+
+    private void clear(int size) {
         V = false;
         Z = true;
         N = false;
         saveResult(0, size);
     }
 
-    public void moven_I(int size) {
-        int result = -getNextOperand(size);
+    private void moven_I(int size) {
+        long result = -getNextOperand(size);
 
         C = false;
         setV(result, size);
@@ -731,8 +792,30 @@ public class VirtualMachine {
         saveResult(result, size);
     }
 
-    public void movec(int size) {
-        int a1 = ~ getNextOperand(size);
+    private void moven_F() {
+        float result = getNextOperandAsFloat();
+
+        C = false;
+        V = false;
+        setZ(result);
+        setN(result);
+
+        saveResult(result);
+    }
+
+    private void moven_D() {
+        double result = getNextOperandAsDouble();
+
+        C = false;
+        V = false;
+        setZ(result);
+        setN(result);
+
+        saveResult(result);
+    }
+
+    private void movec(int size) {
+        long a1 = ~ getNextOperand(size);
 
         V = false;
         setZ(a1, size);
@@ -741,16 +824,15 @@ public class VirtualMachine {
         saveResult(a1, size);
     }
 
-    public void movea() {
+    private void movea() {
         int address = computeNextAddress(WORD_SIZE);
         saveResult(address, WORD_SIZE);
     }
 
-    public void arithmeticOperation(int size, Operation op, boolean twoOperands) {
-        int a1 = getNextOperand(size);
-        int a2 = getNextOperand(size);
-        //@Clean this long int switching is annoying,
-        // Maybe we can work only with int, but not sure if it's possible
+    private void arithmeticOperation(int size, Operation op, boolean twoOperands) {
+        long a1 = getNextOperand(size);
+        long a2 = getNextOperand(size);
+
         long result = switch (op) {
             case OR -> a1 | a2;
             case ANDNOT -> a1 & ~ a2;
@@ -769,6 +851,54 @@ public class VirtualMachine {
 
         if (twoOperands) decPC();
         saveResult((int) result, size);
+    }
+
+    private void arithmeticOperationOnFloat(Operation op, boolean twoOperands) {
+        //TODO: Check if op is only add, sub, mult or div
+
+        float a1 = getNextOperandAsFloat();
+        float a2 = getNextOperandAsFloat();
+
+        float result = switch (op) {
+            case ADD -> a1 + a2;
+            case SUB -> a2 - a1;
+            case MULT -> (long) a1 * a2;
+            case DIV -> a2 / a1;
+            default -> 0;
+        };
+
+        switch (op) {
+            case ADD, SUB -> setAddSubFlags(result);
+            case MULT, DIV -> setMultDivFlags(result);
+        }
+
+        if (twoOperands) decPC();
+
+        saveResult(result);
+    }
+
+    private void arithmeticOperationOnDouble(Operation op, boolean twoOperands) {
+        //TODO: Check if op is only add, sub, mult or div
+
+        double a1 = getNextOperandAsFloat();
+        double a2 = getNextOperandAsFloat();
+
+        double result = switch (op) {
+            case ADD -> a1 + a2;
+            case SUB -> a2 - a1;
+            case MULT -> (long) a1 * a2;
+            case DIV -> a2 / a1;
+            default -> 0;
+        };
+
+        switch (op) {
+            case ADD, SUB -> setAddSubFlags(result);
+            case MULT, DIV -> setMultDivFlags(result);
+        }
+
+        if (twoOperands) decPC();
+
+        saveResult(result);
     }
 
     private void jump() {
@@ -839,10 +969,24 @@ public class VirtualMachine {
         setN(result, size);
     }
 
+    private void setAddSubFlags(double result) {
+        C = false;
+        setV(result);
+        setZ(result);
+        setN(result);
+    }
+
     private void setMultDivFlags(long result, int size) {
         C = false;
         setV(result, size);
         setZ(result, size);
         setN(result, size);
+    }
+
+    private void setMultDivFlags(double result) {
+        C = false;
+        setV(result);
+        setZ(result);
+        setN(result);
     }
 }

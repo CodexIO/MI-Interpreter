@@ -2,7 +2,6 @@ package Assembler;
 
 import Assembler.Token.Type;
 
-import java.lang.reflect.Array;
 import java.util.*;
 
 public class Lexer {
@@ -113,6 +112,7 @@ public class Lexer {
 
         }
 
+        //TODO: Check if equal label is already defined
         equalsDefinitions.put(name.lexeme, replacementTokens);
 
         return tk;
