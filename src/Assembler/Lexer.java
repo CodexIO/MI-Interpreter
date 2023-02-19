@@ -77,7 +77,7 @@ public class Lexer {
     // @Speed This is horribly slow
     private boolean isKeyword(String s) {
         for (OpCode op : OpCode.values()) {
-            String name = op.name;
+            String name = op.operandName;
             if (s.equals(name)) return true;
         }
         if (s.equals("DD")) return true;

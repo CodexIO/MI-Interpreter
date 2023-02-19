@@ -52,7 +52,7 @@ public abstract class Command {
     }
 
     public byte getOpCode() {
-        return (byte) op.opcode;
+        return (byte) op.code;
     }
     public abstract byte[] generateMachineCode();
 }

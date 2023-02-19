@@ -615,6 +615,8 @@ public class VirtualMachine {
             case MOVEC_W -> movec(WORD_SIZE);
 
             case MOVEA -> movea();
+            case CONV -> conv();
+
             case OR_B2 -> arithmeticOperation(BYTE_SIZE, Operation.OR, true);
             case OR_H2 -> arithmeticOperation(HALFWORD_SIZE, Operation.OR, true);
             case OR_W2 -> arithmeticOperation(WORD_SIZE, Operation.OR, true);
@@ -685,6 +687,9 @@ public class VirtualMachine {
             case DIV_F3 -> arithmeticOperationOnFloat(Operation.DIV, false);
             case DIV_D3 -> arithmeticOperationOnDouble(Operation.DIV, false);
 
+            case SH -> sh();
+            case ROT -> rot();
+
             case JEQ, JNE, JGT, JGE, JLT, JLE,
                     JC, JNC, JV, JNV -> jumpOnCondition(op);
 
@@ -749,7 +754,9 @@ public class VirtualMachine {
     }
 
     private void moven_I(int size) {
-        long result = -getNextOperand(size);
+        long negativeBit = 0x80L << ((size - 1) * 8);
+        long a1 = getNextOperand(size);
+        long result = a1 ^ negativeBit;
 
         carry = false;
         setOverflow(result, size);
@@ -793,7 +800,23 @@ public class VirtualMachine {
 
     private void movea() {
         int address = computeNextAddress(WORD_SIZE);
+
+        overflow = false;
+        setZero(address, WORD_SIZE);
+        setNegative(address, WORD_SIZE);
+
         saveResult(address, WORD_SIZE);
+    }
+
+    private void conv() {
+        int a1 = (int) getNextOperand(BYTE_SIZE);
+
+        carry = false;
+        overflow = false;
+        setZero(a1, WORD_SIZE);
+        setNegative(a1, WORD_SIZE);
+
+        saveResult(a1, WORD_SIZE);
     }
 
     private void arithmeticOperation(int size, Operation op, boolean twoOperands) {
@@ -856,6 +879,40 @@ public class VirtualMachine {
 
         if (twoOperands) decPC();
         saveResult(result);
+    }
+
+    private void sh() {
+        int a1 = (int) getNextOperand(WORD_SIZE);
+        int a2 = (int) getNextOperand(WORD_SIZE);
+        int result;
+
+        if (a1 >= 0) result = a2 << a1;
+        else result = a2 >>> -a1;
+
+
+        carry = false;
+        //TODO: Set overflow with IOVL (integer overflow)
+        // for that, i yet have to figure out how IOVL works
+        setZero(result);
+        setNegative(result);
+
+        saveResult(result, WORD_SIZE);
+    }
+
+    private void rot() {
+        int a1 = (int) getNextOperand(WORD_SIZE);
+        int a2 = (int) getNextOperand(WORD_SIZE);
+        int result;
+
+        if (a1 >= 0) result = Integer.rotateLeft(a2, a1);
+        else result = Integer.rotateRight(a2, -a1);
+
+
+        overflow = false;
+        setZero(result);
+        setNegative(result);
+
+        saveResult(result, WORD_SIZE);
     }
 
     private void jump() {

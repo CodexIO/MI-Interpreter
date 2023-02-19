@@ -108,9 +108,11 @@ public class Parser {
             case "HALT" -> parseZeroOpCommand(command);
             case "DD" -> parseDataDefinition(command);
             case "CMP", "MOVE", "MOVEN", "MOVEC" -> parseTwoOpCommand(command);
-            case "MOVEA" -> parseMOVEA(command);
-            case "OR", "ANDNOT", "XOR" -> parseCommand(command);
-            case "ADD", "SUB", "MULT", "DIV"-> parseCommand(command);
+            case "MOVEA" -> parseMOVEAorCONV(command, true);
+            case "CONV" -> parseMOVEAorCONV(command, false);
+            case "OR", "ANDNOT", "XOR", "ADD", "SUB", "MULT", "DIV"->
+                    parseTwoOrThreeOpCommand(command);
+            case "SH", "ROT" -> parseThreeOpCommand(command);
             case "CLEAR" -> parseCLEAR(command);
             case "JEQ", "JNE", "JGT",
                     "JGE", "JLT", "JLE",
@@ -134,7 +136,20 @@ public class Parser {
         };
     }
 
-    private Command parseCommand(Token command) {
+    private Command parseTwoOrThreeOpCommand(Token command) {
+        //It doesn't matter what we pass as twoOperandsNeeded, when fixedOperandCount is false
+        return parseCommand(command, false, false);
+    }
+
+    private Command parseTwoOpCommand(Token command) {
+        return parseCommand(command, true, true);
+    }
+
+    private Command parseThreeOpCommand(Token command) {
+        return parseCommand(command, true, false);
+    }
+
+    private Command parseCommand(Token command, boolean fixedOperandCount, boolean twoOperandsNeeded) {
         // Incrementing the currentAddress because of the OpCode Byte
         int address = currentAddress++;
 
@@ -142,8 +157,6 @@ public class Parser {
         //TODO: Check if tk is really a size indicator
         OpCode.DataType size = getDataType(tk);
 
-        //TODO: Check if operands are really always
-        //TODO  2 or 3... Probably not
         int operands = 2;
 
         Operand a1 = parseOperand(size);
@@ -161,6 +174,18 @@ public class Parser {
             operands = 3;
         }
 
+        if (fixedOperandCount) {
+            if (twoOperandsNeeded) {
+                if (a3 != null) {
+                    //TODO: ERROR
+                }
+            } else {
+                if (a3 == null) {
+                    //TODO: ERROR
+                }
+            }
+        }
+
         OpCode op = OpCode.getOpCode(command.lexeme, size, operands);
 
         //TODO: Think of a convenient way to keep track of current line and row
@@ -168,11 +193,11 @@ public class Parser {
         return new AST_Add(op, command.row, address, command.col, -1, a1, a2, a3);
     }
 
-    private Command parseMOVEA(Token command) {
+    private Command parseMOVEAorCONV(Token command, boolean movea) {
         int address = currentAddress++;
         int operands = 2;
 
-        Operand a1 = parseOperand(WORD);
+        Operand a1 = parseOperand(movea ? WORD : BYTE);
         currentAddress += a1.size();
         eat(COMMA);
 
@@ -223,28 +248,6 @@ public class Parser {
         OpCode op = OpCode.getOpCode(command.lexeme, WORD, 1);
 
         return new AST_SingleOp(op, command.row, address, command.col, -1, a1);
-    }
-
-    private Command parseTwoOpCommand(Token command) {
-        int address = currentAddress++;
-        int operands = 2;
-
-        Token tk = nextToken();
-        //TODO: Check if tk is really a size indicator
-        OpCode.DataType size = getDataType(tk);
-
-        Operand a1 = parseOperand(size);
-        currentAddress += a1.size();
-        eat(COMMA);
-
-        Operand a2 = parseOperand(size);
-        currentAddress += a2.size();
-
-        OpCode op = OpCode.getOpCode(command.lexeme, size, operands);
-
-        //TODO: Think of a convenient way to keep track of current line and row
-        //TODO:                                      |
-        return new AST_Add(op, command.row, address, command.col, -1, a1, a2, null);
     }
 
     private Operand parseOperand(OpCode.DataType size) {

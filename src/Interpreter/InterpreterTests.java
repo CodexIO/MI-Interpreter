@@ -10,20 +10,20 @@ import static org.junit.jupiter.api.Assertions.*;
 public class InterpreterTests {
 
     public static final byte[] REGISTER_ADD = {
-            (byte) ADD_B3.opcode, 0x50, 0x51, 0x52
+            (byte) ADD_B3.code, 0x50, 0x51, 0x52
     };
 
     public static final byte[] DIRECT_OPERAND_ADD = {
-            (byte) ADD_B2.opcode, 0x06, 0x50,
-            (byte) ADD_W2.opcode, (byte) 0x8F, 0x0F, 0x00, (byte)0xFF, 0x00, 0x51
+            (byte) ADD_B2.code, 0x06, 0x50,
+            (byte) ADD_W2.code, (byte) 0x8F, 0x0F, 0x00, (byte)0xFF, 0x00, 0x51
     };
 
     public static final byte[] ABSOLUTE_ADDRESS_MOVE = {
-            (byte) MOVE_B.opcode, (byte) 0x9F, 0x00, 0x00, 0x00, 0x00, (byte) 0x9F, 0x00, 0x00, 0x00, 0x70
+            (byte) MOVE_B.code, (byte) 0x9F, 0x00, 0x00, 0x00, 0x00, (byte) 0x9F, 0x00, 0x00, 0x00, 0x70
     };
 
     public static final byte[] RELATIVE_ADDRESS_WITH_ZERO_MOVE = {
-            (byte) MOVE_B.opcode, (byte) 0x8F, (byte) MOVE_B.opcode, 0x60,
+            (byte) MOVE_B.code, (byte) 0x8F, (byte) MOVE_B.code, 0x60,
             -1/* This number will be overwritten*/, 0x61, 0x52
     };
 
@@ -72,7 +72,7 @@ public class InterpreterTests {
         VirtualMachine vm = new VirtualMachine(ABSOLUTE_ADDRESS_MOVE);
         vm.run();
 
-        assertEquals(OpCode.MOVE_B.opcode, vm.getMemory(0x70, 1) & 0xFF);
+        assertEquals(OpCode.MOVE_B.code, vm.getMemory(0x70, 1) & 0xFF);
     }
 
     @Test
@@ -90,7 +90,7 @@ public class InterpreterTests {
         vm.registers[0] = 4;
         vm.run();
 
-        assertEquals(MOVE_B.opcode, vm.getMemory(4, 1) & 0xFF);
-        assertEquals(MOVE_B.opcode, vm.registers[2]);
+        assertEquals(MOVE_B.code, vm.getMemory(4, 1) & 0xFF);
+        assertEquals(MOVE_B.code, vm.registers[2]);
     }
 }

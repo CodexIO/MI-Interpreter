@@ -51,7 +51,10 @@ public enum OpCode {
     MOVEC_H("MOVEC", 0xA9, 2, HALFWORD),
     MOVEC_W("MOVEC", 0xAA, 2, WORD),
     MOVEA("MOVEA", 0xAB, 2, WORD),
-    //CONV TODO: implement this @Felix macht das negative propagation? Antwort: Im MI-Simulator nachgucken
+
+    // Technically CONV is of Type BYTE/WORD, but for us, it shouldn't matter
+    CONV("CONV", 0xAC, 2, WORD),
+
     OR_B2("OR", 0xAD, 2, BYTE),
     OR_H2("OR", 0xAE, 2, HALFWORD),
     OR_W2("OR", 0xAF, 2, WORD),
@@ -116,8 +119,10 @@ public enum OpCode {
     DIV_W3("DIV", 0xE4, 3, WORD),
     DIV_F3("DIV", 0xE5, 3, FLOAT),
     DIV_D3("DIV", 0xE6, 3, DOUBLE),
-    //SH
-    //ROT
+
+    SH("SH", 0xE7, 3, WORD),
+    ROT("ROT", 0xE8, 3, WORD),
+
     JEQ("JEQ", 0xE9, 1, WORD),
     JNE("JNE", 0xEA, 1, WORD),
     JGT("JGT", 0xEB, 1, WORD),
@@ -133,37 +138,37 @@ public enum OpCode {
     PUSHR("PUSHR", 0xF4, 0, NONE),
     POPR("POPR", 0xF5, 0, NONE);
 
-    public final String name;
-    public final int opcode;
-    public final int operands;
+    public final String operandName;
+    public final int code;
+    public final int operandCount;
     public final DataType type;
 
     //TODO @Speed make a hashtable or array for this.
     public static OpCode find(int code) {
         for (OpCode op : OpCode.values()) {
-            if (op.opcode == code) return op;
+            if (op.code == code) return op;
         }
         //TODO: Throw exception
         return null;
     }
 
     OpCode(String n, int opC, int o, DataType t) {
-        name = n;
-        opcode = (opC & 0xFF);
-        operands = o;
+        operandName = n;
+        code = (opC & 0xFF);
+        operandCount = o;
         type = t;
     }
 
     public String fullName() {
-        return name + "_" + type.toString().charAt(0) + operands;
+        return operandName + "_" + type.toString().charAt(0) + operandCount;
     }
 
     //TODO: @Speed This is slow, maybe implement some kind of HashTable
     public static OpCode getOpCode(String command, OpCode.DataType operandSize, int operandCount) {
         for (OpCode op : OpCode.values()) {
-            if (op.name.equals(command) &&
+            if (op.operandName.equals(command) &&
                     op.type == operandSize &&
-                    op.operands == operandCount) return op;
+                    op.operandCount == operandCount) return op;
         }
 
         return null;
