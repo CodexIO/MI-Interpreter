@@ -1,6 +1,7 @@
 package Interpreter;
 
 import Assembler.OpCode;
+import Assembler.Parser;
 
 import java.util.Arrays;
 
@@ -40,10 +41,10 @@ public class VirtualMachine {
     }
 
     // Condition Codes / Flags
-    private boolean carry;
-    private boolean zero;
-    private boolean negative;
-    private boolean overflow;
+    public boolean carry;
+    public boolean zero;
+    public boolean negative;
+    public boolean overflow;
 
     private final byte[] memory = new byte[MEMORY_LENGTH];
     private final boolean[] changedMemory = new boolean[MEMORY_LENGTH];
@@ -99,6 +100,15 @@ public class VirtualMachine {
                 "  memory: {" + sb + "\n}\n" +
                 "  registers=" + Arrays.toString(registers) + "\n" +
                 '}';
+    }
+
+    public void run(String input) {
+        Parser parser = new Parser(input);
+        parser.parse();
+        reset();
+        setMemory(parser.generateMachineCode());
+
+        run();
     }
 
     private void checkSize(int size) {
@@ -225,7 +235,16 @@ public class VirtualMachine {
         };
     }
 
-    private int getRegister(int reg, int size) {
+    public int getRegisterWithSign(int reg, int size) {
+        int result = getRegister(reg, size);
+        return switch(size) {
+            case BYTE_SIZE -> (byte) result;
+            case HALFWORD_SIZE -> (short) result;
+            default -> result;
+        };
+    }
+
+    public int getRegister(int reg, int size) {
         int mask = getMask(size);
         return registers[reg] & mask;
     }
@@ -439,6 +458,7 @@ public class VirtualMachine {
         return -1;
     }
 
+    //TODO: @Cleanup: Do we always wanna do Signextension when we return numbers from here?
     private long getNextOperand(int operandSize) {
         int b = getNextByte();
 
@@ -455,7 +475,8 @@ public class VirtualMachine {
             }
             case AddressType.REGISTER_ADDRESSING -> {
                 if (operandSize == DOUBLE_SIZE) return getWideRegister(reg);
-                return getRegister(reg, operandSize);
+                int number = getRegister(reg, operandSize);
+                return doSignExtension(number, operandSize);
             }
             case AddressType.RELATIVE_ADDRESSING_WITH_ZERO, AddressType.STACK_ADDRESSING_WITH_MINUS ->
                 address = computeAddress(b, addressType, reg, operandSize);
@@ -467,7 +488,7 @@ public class VirtualMachine {
                         int op = getNextByte();
                         operand = (operand << 8) + op;
                     }
-                    return operand;
+                    return doSignExtension(operand, operandSize);
                 }
                 // Stack Addressing by !Rx+
                 else {
@@ -498,13 +519,22 @@ public class VirtualMachine {
     }
 
     private double getNextOperandAsDouble() {
-        long bits = (int) getNextOperand(FLOAT_SIZE);
+        long bits = getNextOperand(DOUBLE_SIZE);
         return Double.longBitsToDouble(bits);
     }
 
     private float getNextOperandAsFloat() {
         int bits = (int) getNextOperand(FLOAT_SIZE);
         return Float.intBitsToFloat(bits);
+    }
+
+    private long doSignExtension(long number, int size) {
+        return switch (size) {
+            case 1 -> (byte)  number;
+            case 2 -> (short) number;
+            case 4 ->         number;
+            default -> 0xCCCC_CCCC_CCCC_CCCCL;
+        };
     }
 
     private void saveResult(float result) {

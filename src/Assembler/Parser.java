@@ -3,6 +3,7 @@ package Assembler;
 import Assembler.AST_Nodes.*;
 import Interpreter.VirtualMachine;
 
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 import static Assembler.OpCode.DataType.*;
@@ -55,7 +56,6 @@ public class Parser {
     }
 
     public byte[] generateMachineCode() {
-        System.out.println("Generating MachineCode for the input:\n" + lx.source);
         ArrayList<Byte> code = new ArrayList<>();
         for(Command cmd : commands) {
             //TODO: Do i want to use ArrayList instead of byte[] everywhere?
@@ -65,12 +65,6 @@ public class Parser {
                 code.add(b);
             }
         }
-
-        StringBuilder sb = new StringBuilder();
-        for(byte b : code) {
-            sb.append(String.format("%02X ", b & 0xFF));
-        }
-        System.out.println(sb);
 
         byte[] bytes = new byte[code.size()];
         int i = 0;
@@ -285,12 +279,31 @@ public class Parser {
 
     private Command parseDataDefinition(Token command) {
         int address = currentAddress;
+
+        ArrayList<Byte> bytes = new ArrayList<>(parseDataGroup());
+
+        currentAddress += bytes.size();
+        return new AST_DataDefinition(null, command.row, address, command.col, -1, bytes);
+    }
+
+    private ArrayList<Byte> parseDataGroup() {
         ArrayList<Byte> bytes = new ArrayList<>();
 
-        Token tk = nextToken();
-        OpCode.DataType size = getDataType(tk);
+        do {
+            Token tk = nextToken();
+            OpCode.DataType size = getDataType(tk);
 
-        if (size != NONE) tk = nextToken();
+            if (size != NONE) tk = nextToken();
+
+            bytes.addAll(parseDataElement(size, tk));
+
+        } while (peekToken().type == COMMA);
+
+        return bytes;
+    }
+
+    private ArrayList<Byte> parseDataElement(OpCode.DataType size, Token tk) {
+        ArrayList<Byte> bytes = new ArrayList<>();
 
         switch (tk.type) {
             case CONSTANT, MINUS -> {
@@ -300,36 +313,60 @@ public class Parser {
                     tk = nextToken();
                 }
                 number *= Integer.parseInt(tk.lexeme);
-                if (size == NONE) size = getFittingSize(number);
-                switch(size) {
-                    case WORD: {
-                        bytes.add((byte) (number >>> 24));
-                        bytes.add((byte) (number >>> 16));
-                    }
-                    case HALFWORD: bytes.add((byte) (number >>> 8));
-                    case BYTE: bytes.add((byte) number); break;
-                }
+                return getBytesFromNumber(number, size);
             }
-            //@Implement other cases
             case OPEN_PAREN -> {
-
+                //TODO: Implement this
             }
             case APOSTROPHE -> {
-
+                tk = nextToken();
+                for (byte b : tk.lexeme.getBytes(StandardCharsets.US_ASCII)) {
+                    bytes.add(b);
+                }
+                eat(APOSTROPHE);
+                return bytes;
             }
             case IDENTIFIER -> {
-
+                eat(APOSTROPHE);
+                Token num = nextToken();
+                int number = switch (tk.lexeme) {
+                    case "B" -> Integer.parseInt(num.lexeme, 2);
+                    case "H" -> Integer.parseInt(num.lexeme, 16);
+                    default -> 0xCCCC_CCCC; //TODO: ERROR
+                };
+                eat(APOSTROPHE);
+                return getBytesFromNumber(number, size);
             }
         }
 
-        currentAddress += bytes.size();
-        return new AST_DataDefinition(null, command.row, address, command.col, -1, bytes);
+        //TODO: ERROR
+        return bytes;
     }
 
     private OpCode.DataType getFittingSize(int number) {
         if (number <= Byte.MAX_VALUE && number >= Byte.MIN_VALUE) return BYTE;
         else if (number <= Short.MAX_VALUE && number >= Short.MIN_VALUE) return HALFWORD;
         else return WORD;
+    }
+
+    private ArrayList<Byte> getBytesFromNumber(int number, OpCode.DataType size) {
+        ArrayList<Byte> bytes = new ArrayList<>();
+
+        if (size == NONE) size = getFittingSize(number);
+        switch (size) {
+            case WORD: {
+                bytes.add((byte) (number >>> 24));
+                bytes.add((byte) (number >>> 16));
+            }
+            case HALFWORD:
+                bytes.add((byte) (number >>> 8));
+            case BYTE:
+                bytes.add((byte) number);
+                break;
+                // TODO: Add support for FLOAT and Double here.
+        }
+
+        return bytes;
     }
 
     //TODO: For now this only handles !Rx+. @Cleanup
