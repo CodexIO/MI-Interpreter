@@ -333,19 +333,21 @@ public class VirtualMachine {
     public int getMemory(int address, int size) {
         checkSize(size);
         return switch (size) {
-            case 1 -> (byte)  getByte(address);
-            case 2 -> (short) getHalfword(address);
-            case 4 ->         getWord(address);
+            case 1 -> getByte(address);
+            case 2 -> getHalfword(address);
+            case 4 -> getWord(address);
             default -> -1;
         };
     }
 
 
+    //TODO: It seems that we always want the memory with the Sign here, test this
     private int getNextMemory(int size) {
         //@Note: This function should never be called with size 8 which is only for Doubles
         int result = getMemory(getPC(size), size);
         setPC(getPC(size) + size, size);
-        return result;
+
+        return (int) doSignExtension(result, size);
     }
 
     private void setMemory(int address, int size, long result) {
@@ -359,7 +361,7 @@ public class VirtualMachine {
     }
 
     private int getAddress(int address) {
-        return getMemory(address, 4);
+        return getMemory(address, WORD_SIZE);
     }
 
     private int computeStackAddressingWithMinus(int reg, int operandSize) {
@@ -459,6 +461,11 @@ public class VirtualMachine {
     }
 
     //TODO: @Cleanup: Do we always wanna do Signextension when we return numbers from here?
+    private long getNextOperandWithSign(int operandSize) {
+        long numberWithoutSign = getNextOperand(operandSize);
+        return doSignExtension(numberWithoutSign, operandSize);
+    }
+
     private long getNextOperand(int operandSize) {
         int b = getNextByte();
 
@@ -475,8 +482,7 @@ public class VirtualMachine {
             }
             case AddressType.REGISTER_ADDRESSING -> {
                 if (operandSize == DOUBLE_SIZE) return getWideRegister(reg);
-                int number = getRegister(reg, operandSize);
-                return doSignExtension(number, operandSize);
+                return getRegister(reg, operandSize);
             }
             case AddressType.RELATIVE_ADDRESSING_WITH_ZERO, AddressType.STACK_ADDRESSING_WITH_MINUS ->
                 address = computeAddress(b, addressType, reg, operandSize);
@@ -488,7 +494,7 @@ public class VirtualMachine {
                         int op = getNextByte();
                         operand = (operand << 8) + op;
                     }
-                    return doSignExtension(operand, operandSize);
+                    return operand;
                 }
                 // Stack Addressing by !Rx+
                 else {
@@ -528,15 +534,6 @@ public class VirtualMachine {
         return Float.intBitsToFloat(bits);
     }
 
-    private long doSignExtension(long number, int size) {
-        return switch (size) {
-            case 1 -> (byte)  number;
-            case 2 -> (short) number;
-            case 4 ->         number;
-            default -> 0xCCCC_CCCC_CCCC_CCCCL;
-        };
-    }
-
     private void saveResult(float result) {
         int bits = Float.floatToIntBits(result);
         saveResult(bits, FLOAT_SIZE);
@@ -547,8 +544,17 @@ public class VirtualMachine {
         saveResult(bits, DOUBLE_SIZE);
     }
 
+    private long doSignExtension(long number, int size) {
+        return switch (size) {
+            case 1 -> (byte) number;
+            case 2 -> (short)number;
+            case 4 -> (int)  number;
+            default -> number;
+        };
+    }
+
     private void saveResult(long result, int operandSize) {
-        this.operationResult = result;
+        this.operationResult = doSignExtension(result, operandSize);
         int b = getNextByte();
 
         int reg = (b & 0x0F);
@@ -753,8 +759,8 @@ public class VirtualMachine {
     }
 
     private void cmp_I(int size) {
-        long a1 = getNextOperand(size);
-        long a2 = getNextOperand(size);
+        long a1 = getNextOperandWithSign(size);
+        long a2 = getNextOperandWithSign(size);
 
         zero = (a1 == a2);
         negative = (a1 < a2);
