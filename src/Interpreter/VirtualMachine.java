@@ -850,6 +850,9 @@ public class VirtualMachine {
     }
 
     private void arithmeticOperation(int size, Operation op, boolean twoOperands) {
+        //TODO: getNextOperand currently returns the number sign extended,
+        // but i think we need to use the raw bytes of the numbers here
+
         long a1 = getNextOperand(size);
         long a2 = getNextOperand(size);
 
