@@ -137,8 +137,8 @@ class Window extends JFrame implements ActionListener {
 
             updateVmState();
             buttonPanel.run.setEnabled(true);
+            buttonPanel.step.setEnabled(true);
         } else if (src == buttonPanel.run) {
-            vm.reset();
             vm.run();
 
             updateVmState();
@@ -146,7 +146,11 @@ class Window extends JFrame implements ActionListener {
         } else if (src == buttonPanel.debug) {
             //TODO: Implement Debugging
         } else if (src == buttonPanel.step) {
+            vm.step();
 
+            updateVmState();
+
+            if (vm.programHaltet) buttonPanel.step.setEnabled(false);
         } else if (src == buttonPanel.stop) {
 
         } else if (src == buttonPanel.restart) {

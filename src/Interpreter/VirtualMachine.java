@@ -52,8 +52,10 @@ public class VirtualMachine {
     public int[] registers = new int[NUMBER_OF_REGISTERS]; //TODO: Make registers private again with proper testing
     public final boolean[] changedRegisters = new boolean[NUMBER_OF_REGISTERS];
 
-    private boolean programHaltet;
-    private long operationResult;
+    public boolean programHaltet;
+
+    // This is only used for DEBUG purposes
+    private int pcIndexOfLastOperationExecuted;
 
     public VirtualMachine(int begin, byte[] memory) {
         //TODO: Handle bad input
@@ -76,6 +78,13 @@ public class VirtualMachine {
     public VirtualMachine(byte[] memory, int[] registers) {
         this(memory);
         System.arraycopy(registers, 0, this.registers, 0, registers.length);
+    }
+
+    public VirtualMachine(String program) {
+        Parser parser = new Parser(program);
+        parser.parse();
+        byte[] machineCode = parser.generateMachineCode();
+        setMemory(machineCode);
     }
 
     @Override
@@ -554,7 +563,6 @@ public class VirtualMachine {
     }
 
     private void saveResult(long result, int operandSize) {
-        this.operationResult = doSignExtension(result, operandSize);
         int b = getNextByte();
 
         int reg = (b & 0x0F);
@@ -615,6 +623,7 @@ public class VirtualMachine {
     //endregion
 
     public void executeOneInstruction() {
+        int currentIndexOfPC = getPC();
         int opcode = getNextByte();
 
         OpCode op = OpCode.find(opcode);
@@ -735,12 +744,17 @@ public class VirtualMachine {
             case PUSHR -> pushr();
             case POPR -> popr();
         }
+        pcIndexOfLastOperationExecuted = currentIndexOfPC;
     }
 
     public void run() {
         while (!programHaltet) {
             executeOneInstruction();
         }
+    }
+
+    public void step() {
+        executeOneInstruction();
     }
 
     public void halt() {
@@ -864,7 +878,7 @@ public class VirtualMachine {
 
         long result = switch (op) {
             case OR -> a1 | a2;
-            case ANDNOT -> a1 & ~ a2;
+            case ANDNOT -> ~ a1 & a2;
             case XOR -> a1 ^ a2;
             case ADD -> a1 + a2;
             case SUB -> a2 - a1;
@@ -992,12 +1006,12 @@ public class VirtualMachine {
 
     private void jumpOnCondition(OpCode op) {
         boolean cond = switch (op) {
-            case JEQ -> operationResult == 0;
-            case JNE -> operationResult != 0;
-            case JGT -> operationResult >  0;
-            case JGE -> operationResult >= 0;
-            case JLT -> operationResult <  0;
-            case JLE -> operationResult <= 0;
+            case JEQ -> zero;
+            case JNE -> !zero;
+            case JGT -> !(negative | zero);
+            case JGE -> !negative;
+            case JLT -> negative;
+            case JLE -> (negative | zero);
             case JC -> carry;
             case JNC -> !carry;
             case JV -> overflow;
