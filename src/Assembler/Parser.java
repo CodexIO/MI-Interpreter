@@ -30,9 +30,13 @@ public class Parser {
         this(new Lexer(input));
     }
 
+    private void advanceToken() {
+        tokenPosition += 1;
+    }
+
     private Token nextToken() {
         Token tk = peekToken();
-        tokenPosition += 1;
+        advanceToken();
         return tk;
     }
 
@@ -147,9 +151,14 @@ public class Parser {
         // Incrementing the currentAddress because of the OpCode Byte
         int address = currentAddress++;
 
-        Token tk = nextToken();
+        Token tk = peekToken();
         //TODO: Check if tk is really a size indicator
         OpCode.DataType size = getDataType(tk);
+
+        // This is a weird edge case we only have to do because of SH and ROT.
+        // Maybe write a separate function for 'em
+        if (size != NONE) advanceToken();
+        else size = WORD;
 
         int operands = 2;
 
@@ -256,6 +265,10 @@ public class Parser {
             else
                 return parseAbsoluteAddress(tk);
         }
+        else if (tk.type == MINUS) {
+            if (match(BANG)) return parseStackAddressing(false);
+            //TODO: Figure out what to do here
+        }
         else if (tk.lexeme.startsWith("R")) {
             return parseRegisterAddress(tk);
         }
@@ -268,7 +281,7 @@ public class Parser {
         }
         else if (tk.type == BANG) {
             //TODO: Handle the other types of Addressing that start with !
-            return parseStackAddressing();
+            return parseStackAddressing(true);
         }
         else {
             //TODO: ERROR
@@ -370,12 +383,12 @@ public class Parser {
     }
 
     //TODO: For now this only handles !Rx+. @Cleanup
-    private StackAddress parseStackAddressing() {
+    private StackAddress parseStackAddressing(boolean plus) {
         Token regTk = nextToken();
         RegisterAddress reg = parseRegisterAddress(regTk);
-        eat(PLUS);
+        if (plus) eat(PLUS);
 
-        return new StackAddress(reg.getReg(), true);
+        return new StackAddress(reg.getReg(), plus);
     }
 
     private RelativeAddress parseRelativeAddress(Token tk) {
@@ -390,8 +403,14 @@ public class Parser {
     }
 
     private RegisterAddress parseRegisterAddress(Token tk) {
-        String s = tk.lexeme.substring(1);
-        int reg = Integer.parseInt(s);
+        int reg;
+
+        if (tk.lexeme.equals("PC")) reg = VirtualMachine.PC_REGISTER;
+        else if (tk.lexeme.equals("SP")) reg = VirtualMachine.SP_REGISTER;
+        else {
+            String s = tk.lexeme.substring(1);
+            reg = Integer.parseInt(s);
+        }
 
         return new RegisterAddress(reg);
     }
@@ -402,7 +421,6 @@ public class Parser {
         return new AbsoluteAddress(address);
     }
 
-    //TODO: Labels are apparently relative to the PC and not AbsoluteAddresses. Fix this.
     private RelativeAddress parseLabelAddress(Token tk) {
         String labelName = tk.lexeme;
         Integer address = labelAddresses.get(labelName);
@@ -479,20 +497,20 @@ public class Parser {
 
     private ImmediateOperand parseInteger(OpCode.DataType size) {
         Token tk = nextToken();
-        int number;
+        long number;
 
         switch(tk.type) {
             case MINUS -> {
                 tk = nextToken();
-                number = - Integer.parseInt(tk.lexeme);
+                number = - Long.parseLong(tk.lexeme);
             }
             case CONSTANT -> number = Integer.parseInt(tk.lexeme);
             case IDENTIFIER -> {
                 eat(APOSTROPHE);
                 Token num = nextToken();
                 number = switch (tk.lexeme) {
-                    case "B" -> Integer.parseInt(num.lexeme, 2);
-                    case "H" -> Integer.parseInt(num.lexeme, 16);
+                    case "B" -> Long.parseLong(num.lexeme, 2);
+                    case "H" -> Long.parseLong(num.lexeme, 16);
                     default -> 0xCCCC_CCCC; //TODO: ERROR
                 };
                 eat(APOSTROPHE);
