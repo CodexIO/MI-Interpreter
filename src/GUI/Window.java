@@ -3,8 +3,11 @@ package GUI;
 // Java Program to create a text editor using java
 import Interpreter.VirtualMachine;
 import Assembler.Parser;
+import org.fife.ui.rsyntaxtextarea.AbstractTokenMakerFactory;
 import org.fife.ui.rsyntaxtextarea.RSyntaxTextArea;
 import org.fife.ui.rsyntaxtextarea.SyntaxConstants;
+import org.fife.ui.rsyntaxtextarea.TokenMakerFactory;
+import org.fife.ui.rtextarea.RTextScrollPane;
 
 import javax.swing.*;
 import javax.swing.border.LineBorder;
@@ -113,10 +116,14 @@ class Window extends JFrame implements ActionListener {
         upperPanel.add(buttonPanel);
         upperPanel.setBorder(new LineBorder(Color.black));
 
+        RTextScrollPane scroll = new RTextScrollPane(textEditor);
+        scroll.setPreferredSize(new Dimension(400, 700));
+        scroll.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS);
+
         centerPanel.setLayout(new BoxLayout(centerPanel, BoxLayout.X_AXIS));
         centerPanel.setBorder(new LineBorder(Color.black));
         centerPanel.add(registerPanel);
-        centerPanel.add(textEditor);
+        centerPanel.add(scroll);
         centerPanel.add(memoryPanel);
 
         lowerPanel.add(notificationPane);
@@ -124,8 +131,12 @@ class Window extends JFrame implements ActionListener {
 
         add(mainPanel);
 
+
+        AbstractTokenMakerFactory atmf = (AbstractTokenMakerFactory) TokenMakerFactory.getDefaultInstance();
+        atmf.putMapping("text/mi", "Assembler.MiTokenMaker");
+        textEditor.setSyntaxEditingStyle("text/mi");
+        //textEditor.setFont(new Font("Courier New", Font.PLAIN, 14));
         textEditor.setText("ADD B I 5, I 5, R0");
-        textEditor.setSyntaxEditingStyle(SyntaxConstants.SYNTAX_STYLE_ASSEMBLER_X86);
     }
 
     // If a button is pressed

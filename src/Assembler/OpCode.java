@@ -138,7 +138,7 @@ public enum OpCode {
     PUSHR("PUSHR", 0xF4, 0, NONE),
     POPR("POPR", 0xF5, 0, NONE);
 
-    public final String operandName;
+    public final String name;
     public final int code;
     public final int operandCount;
     public final DataType type;
@@ -153,20 +153,20 @@ public enum OpCode {
     }
 
     OpCode(String n, int opC, int o, DataType t) {
-        operandName = n;
+        name = n;
         code = (opC & 0xFF);
         operandCount = o;
         type = t;
     }
 
     public String fullName() {
-        return operandName + "_" + type.toString().charAt(0) + operandCount;
+        return name + "_" + type.toString().charAt(0) + operandCount;
     }
 
     //TODO: @Speed This is slow, maybe implement some kind of HashTable
     public static OpCode getOpCode(String command, OpCode.DataType operandSize, int operandCount) {
         for (OpCode op : OpCode.values()) {
-            if (op.operandName.equals(command) &&
+            if (op.name.equals(command) &&
                     op.type == operandSize &&
                     op.operandCount == operandCount) return op;
         }
