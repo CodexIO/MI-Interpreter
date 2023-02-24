@@ -3,6 +3,8 @@ package GUI;
 // Java Program to create a text editor using java
 import Interpreter.VirtualMachine;
 import Assembler.Parser;
+import org.fife.ui.rsyntaxtextarea.RSyntaxTextArea;
+import org.fife.ui.rsyntaxtextarea.SyntaxConstants;
 
 import javax.swing.*;
 import javax.swing.border.LineBorder;
@@ -27,7 +29,8 @@ class Window extends JFrame implements ActionListener {
     private final JPanel centerPanel = new JPanel();
     private final JPanel lowerPanel = new JPanel();
 
-    private final TextEditorPane editorPane = new TextEditorPane();
+    //private final TextEditorPane textEditor = new TextEditorPane();
+    private final RSyntaxTextArea textEditor = new RSyntaxTextArea();
     private final JTextPane notificationPane = new JTextPane();
 
     private final JPanel mainPanel = new JPanel();
@@ -113,7 +116,7 @@ class Window extends JFrame implements ActionListener {
         centerPanel.setLayout(new BoxLayout(centerPanel, BoxLayout.X_AXIS));
         centerPanel.setBorder(new LineBorder(Color.black));
         centerPanel.add(registerPanel);
-        centerPanel.add(editorPane);
+        centerPanel.add(textEditor);
         centerPanel.add(memoryPanel);
 
         lowerPanel.add(notificationPane);
@@ -121,7 +124,8 @@ class Window extends JFrame implements ActionListener {
 
         add(mainPanel);
 
-        editorPane.setText("ADD B I 5, I 5, R0");
+        textEditor.setText("ADD B I 5, I 5, R0");
+        textEditor.setSyntaxEditingStyle(SyntaxConstants.SYNTAX_STYLE_ASSEMBLER_X86);
     }
 
     // If a button is pressed
@@ -130,7 +134,7 @@ class Window extends JFrame implements ActionListener {
         Object src = e.getSource();
 
         if (src == buttonPanel.assemble) {
-            Parser parser = new Parser(editorPane.getText());
+            Parser parser = new Parser(textEditor.getText());
             parser.parse();
             vm.reset();
             vm.setMemory(parser.generateMachineCode());
@@ -190,7 +194,7 @@ class Window extends JFrame implements ActionListener {
                         w = new BufferedWriter(wr);
 
                         // Write
-                        w.write(editorPane.getText());
+                        w.write(textEditor.getText());
 
                         w.flush();
                         w.close();
@@ -206,7 +210,7 @@ class Window extends JFrame implements ActionListener {
             case "Print":
                 try {
                     // print the file
-                    editorPane.print();
+                    textEditor.print();
                 } catch (Exception evt) {
                     JOptionPane.showMessageDialog(this, evt.getMessage());
                 }
@@ -243,7 +247,7 @@ class Window extends JFrame implements ActionListener {
                         }
 
                         // Set the text
-                        editorPane.setText(sb.toString());
+                        textEditor.setText(sb.toString());
                     } catch (Exception evt) {
                         JOptionPane.showMessageDialog(this, evt.getMessage());
                     }
@@ -254,10 +258,10 @@ class Window extends JFrame implements ActionListener {
                 break;
             }
             case "New":
-                editorPane.setText("");
+                textEditor.setText("");
                 break;
             case "Run":
-                Parser parser = new Parser(editorPane.getText());
+                Parser parser = new Parser(textEditor.getText());
                 parser.parse();
                 vm.reset();
                 vm.setMemory(parser.generateMachineCode());
