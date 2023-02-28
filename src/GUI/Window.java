@@ -7,6 +7,7 @@ import org.fife.ui.rsyntaxtextarea.AbstractTokenMakerFactory;
 import org.fife.ui.rsyntaxtextarea.RSyntaxTextArea;
 import org.fife.ui.rsyntaxtextarea.SyntaxConstants;
 import org.fife.ui.rsyntaxtextarea.TokenMakerFactory;
+import org.fife.ui.rtextarea.Gutter;
 import org.fife.ui.rtextarea.RTextScrollPane;
 
 import javax.swing.*;
@@ -14,6 +15,7 @@ import javax.swing.border.LineBorder;
 import java.awt.*;
 import java.io.*;
 import java.awt.event.*;
+import java.net.URL;
 
 class Window extends JFrame implements ActionListener {
 
@@ -32,8 +34,8 @@ class Window extends JFrame implements ActionListener {
     private final JPanel centerPanel = new JPanel();
     private final JPanel lowerPanel = new JPanel();
 
-    //private final TextEditorPane textEditor = new TextEditorPane();
     private final RSyntaxTextArea textEditor = new RSyntaxTextArea();
+    RTextScrollPane scroll = new RTextScrollPane(textEditor);
     private final JTextPane notificationPane = new JTextPane();
 
     private final JPanel mainPanel = new JPanel();
@@ -116,10 +118,6 @@ class Window extends JFrame implements ActionListener {
         upperPanel.add(buttonPanel);
         upperPanel.setBorder(new LineBorder(Color.black));
 
-        RTextScrollPane scroll = new RTextScrollPane(textEditor);
-        scroll.setPreferredSize(new Dimension(400, 700));
-        scroll.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS);
-
         centerPanel.setLayout(new BoxLayout(centerPanel, BoxLayout.X_AXIS));
         centerPanel.setBorder(new LineBorder(Color.black));
         centerPanel.add(registerPanel);
@@ -137,6 +135,15 @@ class Window extends JFrame implements ActionListener {
         textEditor.setSyntaxEditingStyle("text/mi");
         //textEditor.setFont(new Font("Courier New", Font.PLAIN, 14));
         textEditor.setText("ADD B I 5, I 5, R0");
+
+        scroll.setPreferredSize(new Dimension(400, 700));
+        scroll.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS);
+
+        Gutter gutter = scroll.getGutter();
+        gutter.setBookmarkingEnabled(true);
+        //TODO: Add Breakpoint image
+        //URL url = getClass().getResource("breakpoint.png");
+        //gutter.setBookmarkIcon(new ImageIcon(url));
     }
 
     // If a button is pressed

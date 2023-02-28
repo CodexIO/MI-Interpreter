@@ -112,8 +112,9 @@ public class MiTokenMaker extends AbstractTokenMaker {
                             currentTokenType = Token.SEPARATOR;
                             break;
 
-                        case '#':
-                            currentTokenType = Token.COMMENT_EOL;
+                        case '-':
+                            if (i + 1 < end && array[i+1] == '-') currentTokenType = Token.COMMENT_EOL;
+                            else currentTokenType = Token.IDENTIFIER;
                             break;
 
                         default:
@@ -148,10 +149,12 @@ public class MiTokenMaker extends AbstractTokenMaker {
                             currentTokenType = Token.LITERAL_STRING_DOUBLE_QUOTE;
                             break;
 
-                        case '#':
+                        case '-':
                             addToken(text, currentTokenStart,i-1, Token.WHITESPACE, newStartOffset+currentTokenStart);
                             currentTokenStart = i;
-                            currentTokenType = Token.COMMENT_EOL;
+
+                            if(i + 1 < end && array[i+1] == '-') currentTokenType = Token.COMMENT_EOL;
+                            else currentTokenType = Token.IDENTIFIER;
                             break;
 
                         default:   // Add the whitespace token and start anew.
