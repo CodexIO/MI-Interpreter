@@ -30,6 +30,10 @@ public class Parser {
         this(new Lexer(input));
     }
 
+    public List<Command> getCommands() {
+        return commands;
+    }
+
     private void advanceToken() {
         tokenPosition += 1;
     }

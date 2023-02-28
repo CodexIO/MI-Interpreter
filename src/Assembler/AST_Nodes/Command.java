@@ -51,6 +51,10 @@ public abstract class Command {
         return address;
     }
 
+    public int getLineNumber() {
+        return row;
+    }
+
     public byte getOpCode() {
         return (byte) op.code;
     }

@@ -8,10 +8,12 @@ import org.fife.ui.rsyntaxtextarea.RSyntaxTextArea;
 import org.fife.ui.rsyntaxtextarea.SyntaxConstants;
 import org.fife.ui.rsyntaxtextarea.TokenMakerFactory;
 import org.fife.ui.rtextarea.Gutter;
+import org.fife.ui.rtextarea.GutterIconInfo;
 import org.fife.ui.rtextarea.RTextScrollPane;
 
 import javax.swing.*;
 import javax.swing.border.LineBorder;
+import javax.swing.text.BadLocationException;
 import java.awt.*;
 import java.io.*;
 import java.awt.event.*;
@@ -140,10 +142,9 @@ class Window extends JFrame implements ActionListener {
         scroll.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS);
 
         Gutter gutter = scroll.getGutter();
+        URL breakpointUrl = getClass().getResource("breakpoint.png");
+        gutter.setBookmarkIcon(new ImageIcon(breakpointUrl));
         gutter.setBookmarkingEnabled(true);
-        //TODO: Add Breakpoint image
-        //URL url = getClass().getResource("breakpoint.png");
-        //gutter.setBookmarkIcon(new ImageIcon(url));
     }
 
     // If a button is pressed
@@ -156,29 +157,69 @@ class Window extends JFrame implements ActionListener {
             parser.parse();
             vm.reset();
             vm.setMemory(parser.generateMachineCode());
+            vm.setLineNumberToAddress(parser.getCommands());
 
             updateVmState();
             buttonPanel.run.setEnabled(true);
+            buttonPanel.debug.setEnabled(true);
             buttonPanel.step.setEnabled(true);
         } else if (src == buttonPanel.run) {
             vm.run();
 
             updateVmState();
-            buttonPanel.run.setEnabled(false);
+            updateButtons();
         } else if (src == buttonPanel.debug) {
-            //TODO: Implement Debugging
+            Gutter gutter = scroll.getGutter();
+            GutterIconInfo[] breakpoints = gutter.getBookmarks();
+            int[] breakpointLines = new int[breakpoints.length];
+            int i = 0;
+            for (var info : breakpoints) {
+                int lineNumber = -1;
+                try {
+                    lineNumber = textEditor.getLineOfOffset(info.getMarkedOffset()) + 1;
+                    breakpointLines[i++] = lineNumber;
+                } catch (BadLocationException exception) {
+                    // This can't happen since we get the Offset from the textEditor itself.
+                }
+            }
+            vm.setBreakpoints(breakpointLines);
+
+            vm.run();
+
+            highlightNextLineToBeExecuted();
+            updateVmState();
+            updateButtons();
         } else if (src == buttonPanel.step) {
             vm.step();
 
+            highlightNextLineToBeExecuted();
             updateVmState();
-
-            if (vm.programHaltet) buttonPanel.step.setEnabled(false);
+            updateButtons();
         } else if (src == buttonPanel.stop) {
 
         } else if (src == buttonPanel.restart) {
 
         } else {
             evalMenuBar(e);
+        }
+    }
+
+    private void highlightNextLineToBeExecuted() {
+        int lineNumber = vm.getLineNumberOfNextCommand() - 1;
+        int offset = 0;
+        try {
+            offset = textEditor.getLineStartOffset(lineNumber);
+        } catch (BadLocationException ex) {
+            // This should never happen
+        }
+        textEditor.setCaretPosition(offset);
+    }
+
+    private void updateButtons() {
+        if (vm.programHaltet) {
+            buttonPanel.step.setEnabled(false);
+            buttonPanel.run.setEnabled(false);
+            buttonPanel.debug.setEnabled(false);
         }
     }
 
@@ -278,20 +319,6 @@ class Window extends JFrame implements ActionListener {
             case "New":
                 textEditor.setText("");
                 break;
-            case "Run":
-                Parser parser = new Parser(textEditor.getText());
-                parser.parse();
-                vm.reset();
-                vm.setMemory(parser.generateMachineCode());
-                vm.run();
-                notificationPane.setText(vm.toString());
-
-                registerPanel.updateRegisterValues();
-                memoryPanel.renderMemory();
-
-                break;
-            case "close":
-                System.exit(0);
         }
     }
 }

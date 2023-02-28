@@ -1,9 +1,13 @@
 package Interpreter;
 
+import Assembler.AST_Nodes.Command;
 import Assembler.OpCode;
 import Assembler.Parser;
 
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 public class VirtualMachine {
 
@@ -52,7 +56,13 @@ public class VirtualMachine {
     public int[] registers = new int[NUMBER_OF_REGISTERS]; //TODO: Make registers private again with proper testing
     public final boolean[] changedRegisters = new boolean[NUMBER_OF_REGISTERS];
 
+    private final Map<Integer, Integer> lineNumberToAddress = new HashMap<>();
+    private final Map<Integer, Integer> AddressToLineNumber = new HashMap<>();
+    private int[] breakpointAddresses = new int[0];
+
+    private boolean justBreaked;
     public boolean programHaltet;
+
 
     // This is only used for DEBUG purposes
     private int pcIndexOfLastOperationExecuted;
@@ -84,6 +94,7 @@ public class VirtualMachine {
         Parser parser = new Parser(program);
         parser.parse();
         byte[] machineCode = parser.generateMachineCode();
+        setLineNumberToAddress(parser.getCommands());
         setMemory(machineCode);
     }
 
@@ -116,6 +127,7 @@ public class VirtualMachine {
         parser.parse();
         reset();
         setMemory(parser.generateMachineCode());
+        setLineNumberToAddress(parser.getCommands());
 
         run();
     }
@@ -132,6 +144,7 @@ public class VirtualMachine {
 
         Arrays.fill(changedRegisters, false);
         Arrays.fill(changedMemory, false);
+        breakpointAddresses = new int[0];
         programHaltet = false;
     }
 
@@ -143,6 +156,17 @@ public class VirtualMachine {
     public void setMemory(byte[] mem) {
         Arrays.fill(memory, (byte) 0);
         System.arraycopy(mem, 0, memory, 0, mem.length);
+    }
+
+    public void setLineNumberToAddress(List<Command> commands) {
+        for (var command : commands) {
+            int lineNumber = command.getLineNumber();
+            int address = command.getAddress();
+
+            //TODO: Check if no lineNumber gets set multiple times (normally this shouldn't happen)
+            lineNumberToAddress.put(lineNumber, address);
+            AddressToLineNumber.put(address, lineNumber);
+        }
     }
 
     //@Cleanup Check if this even gets called from other than getPC()
@@ -747,18 +771,45 @@ public class VirtualMachine {
         pcIndexOfLastOperationExecuted = currentIndexOfPC;
     }
 
+    public void setBreakpoints(int[] breakpointLines) {
+        this.breakpointAddresses = new int[breakpointLines.length];
+        int i = 0;
+        for (int breakpointLine : breakpointLines) {
+            //TODO: Currently this would break if a breakpoint is set on something other than a Command.
+            //      To prevent this, we should prevent setting Breakpoints on empty lines or EQU lines.
+            this.breakpointAddresses[i++] = lineNumberToAddress.get(breakpointLine);
+        }
+    }
+
+    public int getLineNumberOfNextCommand() {
+        //In case the Program gets modified mid run, this won't find anything.
+        Integer lineNumber = AddressToLineNumber.get(getPC());
+
+        if (lineNumber == null) return 1;
+        else return lineNumber;
+    }
+
     public void run() {
         while (!programHaltet) {
+            if (justBreaked) justBreaked = false;
+            else {
+                // Note: binarySearch expects the array to be sorted, which should always be the case here
+                boolean breakPointFound = Arrays.binarySearch(breakpointAddresses, getPC()) >= 0;
+                if (breakPointFound) {
+                    justBreaked = true;
+                    return;
+                }
+            }
             executeOneInstruction();
         }
     }
 
     public void step() {
+        justBreaked = false;
         executeOneInstruction();
     }
 
     public void halt() {
-
         programHaltet = true;
     }
 
