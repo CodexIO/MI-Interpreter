@@ -17,6 +17,10 @@ public class MiTokenMaker extends AbstractTokenMaker {
         }
 
         tokenMap.put("EQU", Token.RESERVED_WORD);
+        tokenMap.put("DD", Token.RESERVED_WORD);
+        tokenMap.put("RES", Token.RESERVED_WORD);
+        tokenMap.put("SEG", Token.RESERVED_WORD);
+        tokenMap.put("END", Token.RESERVED_WORD);
 
         tokenMap.put("B", Token.DATA_TYPE);
         tokenMap.put("H", Token.DATA_TYPE);
