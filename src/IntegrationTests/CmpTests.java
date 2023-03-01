@@ -12,7 +12,6 @@ import static org.junit.jupiter.api.Assertions.*;
 
 public class CmpTests {
     VirtualMachine vm = new VirtualMachine();
-    Parser parser;
 
     @BeforeEach
     public void init() {

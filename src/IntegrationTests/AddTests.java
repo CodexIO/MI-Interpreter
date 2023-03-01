@@ -11,7 +11,6 @@ import static org.junit.jupiter.api.Assertions.*;
 
 public class AddTests {
     VirtualMachine vm = new VirtualMachine();
-    Parser parser;
 
     @BeforeEach
     public void init() {

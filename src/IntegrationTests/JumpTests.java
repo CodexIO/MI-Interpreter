@@ -7,7 +7,6 @@ import static Interpreter.VirtualMachine.*;
 import static org.junit.Assert.*;
 
 public class JumpTests {
-
     VirtualMachine vm = new VirtualMachine();
 
     @Test
