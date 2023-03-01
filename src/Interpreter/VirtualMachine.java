@@ -216,7 +216,7 @@ public class VirtualMachine {
     }
 
     public void setOverflow(double result) {
-        //TODO: IMPLEMENT ME
+        overflow = Double.isInfinite(result);
     }
 
     public void setZero(long result, int size) {
@@ -641,6 +641,9 @@ public class VirtualMachine {
                 int address = computeIndirectAddressing(reg, WORD_SIZE);
                 setMemory(address, operandSize, result);
             }
+            default -> {
+                //TODO: ERROR here
+            }
         }
     }
 
@@ -925,6 +928,8 @@ public class VirtualMachine {
         // but i think we need to use the raw bytes of the numbers here
 
         long a1 = getNextOperand(size);
+
+        int addressOfSecondOperand = getPC();
         long a2 = getNextOperand(size);
 
         long result = switch (op) {
@@ -943,7 +948,7 @@ public class VirtualMachine {
             case MULT, DIV -> setMultDivFlags(result, size);
         }
 
-        if (twoOperands) decPC();
+        if (twoOperands) setPC(addressOfSecondOperand);
         saveResult((int) result, size);
     }
 
@@ -951,6 +956,8 @@ public class VirtualMachine {
         //TODO: Check if op is only add, sub, mult or div
 
         float a1 = getNextOperandAsFloat();
+
+        int addressOfSecondOperand = getPC();
         float a2 = getNextOperandAsFloat();
 
         float result = switch (op) {
@@ -962,7 +969,7 @@ public class VirtualMachine {
         };
         setFlags(result);
 
-        if (twoOperands) decPC();
+        if (twoOperands) setPC(addressOfSecondOperand);
         saveResult(result);
     }
 
@@ -970,6 +977,8 @@ public class VirtualMachine {
         //TODO: Check if op is only add, sub, mult or div
 
         double a1 = getNextOperandAsFloat();
+
+        int addressOfSecondOperand = getPC();
         double a2 = getNextOperandAsFloat();
 
         double result = switch (op) {
@@ -981,7 +990,7 @@ public class VirtualMachine {
         };
         setFlags(result);
 
-        if (twoOperands) decPC();
+        if (twoOperands) setPC(addressOfSecondOperand);
         saveResult(result);
     }
 
