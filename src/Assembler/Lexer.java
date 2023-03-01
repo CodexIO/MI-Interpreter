@@ -45,6 +45,13 @@ public class Lexer {
         return source.charAt(index + 1);
     }
 
+    private void eat(char expected) {
+        char c = nextChar();
+        if (c != expected) {
+            //TODO: ERROR
+        }
+    }
+
     private void eatWhitespace() {
         char c;
         while (true) {
@@ -81,6 +88,7 @@ public class Lexer {
             if (s.equals(name)) return true;
         }
         if (s.equals("DD")) return true;
+        if (s.equals("RES"))return true;
         if (s.equals("SP")) return true;
         if (s.equals("PC")) return true;
 
@@ -145,6 +153,8 @@ public class Lexer {
         }
 
         if(isKeyword(tk.lexeme)) tk.type = Type.KEYWORD;
+        else if (tk.lexeme.equals("SEG")) tk.type = Type.SEG;
+        else if (tk.lexeme.equals("END")) tk.type = Type.END;
 
         return maybeReplaceIdentifier(tk);
     }
@@ -153,6 +163,17 @@ public class Lexer {
         while (Character.isDigit(peek())) advance();
 
         return newToken(Type.CONSTANT);
+    }
+
+    private Token lexEncapsulatedConstant() {
+        start = index;
+
+        while (peek() != '\'') advance();
+
+        Token tk = newToken(Type.CONSTANT);
+        eat('\'');
+
+        return tk;
     }
 
     public List<Token> getTokens() {
@@ -177,6 +198,8 @@ public class Lexer {
 
         if (Character.isAlphabetic(c)) {
             return lexKeywordOrIdentifier();
+        } else if (c == '\'') {
+            return lexEncapsulatedConstant();
         } else if (Character.isDigit(c)) {
             return lexNumberConstant();
         }
