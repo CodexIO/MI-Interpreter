@@ -164,6 +164,7 @@ class Window extends JFrame implements ActionListener {
             buttonPanel.debug.setEnabled(true);
             buttonPanel.step.setEnabled(true);
         } else if (src == buttonPanel.run) {
+            vm.setBreakpoints(new int[0]);
             vm.run();
 
             updateVmState();
