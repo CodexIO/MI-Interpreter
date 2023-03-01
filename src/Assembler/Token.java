@@ -21,6 +21,8 @@ public class Token {
         KEYWORD,
         CONSTANT,
         IDENTIFIER,
+        SEG,
+        END,
         UNKNOWN, //@Cleanup right now this is used for End of File and unknown Tokens, separate these
         REPLACED_BY_EQUAL,
     }
