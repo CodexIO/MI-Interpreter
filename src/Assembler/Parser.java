@@ -51,7 +51,10 @@ public class Parser {
 
     private void eat(Token.Type type) {
         Token tk = nextToken();
-        if (tk.type != type) assert(false);//TODO: ERROR
+        if (tk.type != type) {
+            String rowAndCol = "[" + tk.row + ", " + tk.col + "]";
+            System.err.println(rowAndCol + "ERROR: Unexpected TokenType, expected: " + type.name() + " but got: " + tk.type + " with lexeme: " + tk.lexeme);
+        }
     }
 
     private boolean match(Token.Type type) {
@@ -87,14 +90,25 @@ public class Parser {
 
         while (tk.type != UNKNOWN) {
             switch (tk.type) {
+                case SEG -> parseSeg();
+                case END -> parseEnd();
                 case KEYWORD -> parseKeyword(tk);
                 case IDENTIFIER -> parseLabel(tk);
-                default -> System.out.println("Unhandled TokenType: " + tk.type + " Lexeme: " + tk.lexeme);
+                default -> System.out.println("[" + tk.row + ", " + tk.col + "] " + "Unhandled TokenType: " + tk.type + " Lexeme: " + tk.lexeme);
             }
             tk = nextToken();
         }
 
         patchLabels();
+    }
+
+    private void parseSeg() {
+        // TODO: Maybe implement this?
+        // It's not really needed since SEG doesn't do anything important
+    }
+
+    private void parseEnd() {
+        // This really does nothing
     }
 
     private void parseLabel(Token name) {
@@ -109,6 +123,7 @@ public class Parser {
         Command cmd = switch (command.lexeme) {
             case "HALT" -> parseZeroOpCommand(command);
             case "DD" -> parseDataDefinition(command);
+            case "RES" -> parseReserve(command);
             case "CMP", "MOVE", "MOVEN", "MOVEC" -> parseTwoOpCommand(command);
             case "MOVEA" -> parseMOVEAorCONV(command, true);
             case "CONV" -> parseMOVEAorCONV(command, false);
@@ -294,10 +309,26 @@ public class Parser {
         return null; //TODO: remove this
     }
 
+    private Command parseReserve(Token command) {
+        int address = currentAddress;
+
+        Token tk = nextToken();
+        int reserveCount = Integer.parseInt(tk.lexeme);
+
+        ArrayList<Byte> bytes = new ArrayList<>(reserveCount);
+        for (int i = 0; i < reserveCount; i++) bytes.add((byte) 0);
+
+        currentAddress += reserveCount;
+
+        // Reserve does almost the same thing as Data Definition, which is why we can use the same class
+        // @Clean We should rename the class though to better reflect this
+        return new AST_DataDefinition(null, command.row, address, command.col, -1, bytes);
+    }
+
     private Command parseDataDefinition(Token command) {
         int address = currentAddress;
 
-        ArrayList<Byte> bytes = new ArrayList<>(parseDataGroup());
+        ArrayList<Byte> bytes = parseDataGroup();
 
         currentAddress += bytes.size();
         return new AST_DataDefinition(null, command.row, address, command.col, -1, bytes);
@@ -314,7 +345,7 @@ public class Parser {
 
             bytes.addAll(parseDataElement(size, tk));
 
-        } while (peekToken().type == COMMA);
+        } while (match(COMMA));
 
         return bytes;
     }
@@ -324,7 +355,7 @@ public class Parser {
 
         switch (tk.type) {
             case CONSTANT, MINUS -> {
-                int number = 1;
+                long number = 1;
                 if (tk.type == MINUS) {
                     number = -1;
                     tk = nextToken();
@@ -344,15 +375,27 @@ public class Parser {
                 return bytes;
             }
             case IDENTIFIER -> {
-                eat(APOSTROPHE);
-                Token num = nextToken();
-                int number = switch (tk.lexeme) {
-                    case "B" -> Integer.parseInt(num.lexeme, 2);
-                    case "H" -> Integer.parseInt(num.lexeme, 16);
-                    default -> 0xCCCC_CCCC; //TODO: ERROR
-                };
-                eat(APOSTROPHE);
-                return getBytesFromNumber(number, size);
+                if (tk.lexeme.equals("B") || tk.lexeme.equals("H")) {
+                    eat(APOSTROPHE);
+                    Token num = nextToken();
+                    int number = switch (tk.lexeme) {
+                        case "B" -> Integer.parseInt(num.lexeme, 2);
+                        case "H" -> Integer.parseInt(num.lexeme, 16);
+                        default -> 0xCCCC_CCCC; //TODO: ERROR
+                    };
+                    eat(APOSTROPHE);
+                    return getBytesFromNumber(number, size);
+                } else {
+                    String labelName = tk.lexeme;
+                    Integer address = labelAddresses.get(labelName);
+
+                    if (address == null) {
+                        // TODO: Handle labels not being defined.
+                        // Maybe we should pre parse to know all the labels ahead of time
+                    } else {
+                        return getBytesFromNumber(address, WORD);
+                    }
+                }
             }
         }
 
@@ -360,13 +403,13 @@ public class Parser {
         return bytes;
     }
 
-    private OpCode.DataType getFittingSize(int number) {
+    private OpCode.DataType getFittingSize(long number) {
         if (number <= Byte.MAX_VALUE && number >= Byte.MIN_VALUE) return BYTE;
         else if (number <= Short.MAX_VALUE && number >= Short.MIN_VALUE) return HALFWORD;
         else return WORD;
     }
 
-    private ArrayList<Byte> getBytesFromNumber(int number, OpCode.DataType size) {
+    private ArrayList<Byte> getBytesFromNumber(long number, OpCode.DataType size) {
         ArrayList<Byte> bytes = new ArrayList<>();
 
         if (size == NONE) size = getFittingSize(number);
@@ -380,17 +423,32 @@ public class Parser {
             case BYTE:
                 bytes.add((byte) number);
                 break;
-                // TODO: Add support for FLOAT and Double here.
+            case FLOAT:
+                float floatNumber = (float) number;
+                int bits = Float.floatToIntBits(floatNumber);
+                bytes = getBytesFromNumber(bits, WORD);
+                break;
+            case DOUBLE:
+                double doubleNumber = (double) number;
+                long longBits = Double.doubleToLongBits(doubleNumber);
+                bytes.addAll(getBytesFromNumber(longBits >> 32, WORD));
+                bytes.addAll(getBytesFromNumber((int) longBits, WORD));
+                break;
         }
 
         return bytes;
     }
 
-    //TODO: For now this only handles !Rx+. @Cleanup
-    private StackAddress parseStackAddressing(boolean plus) {
+    //TODO: For now this only handles !Rx+ and !Rx. These cases should be split up
+    // @Cleanup
+    private Operand parseStackAddressing(boolean plus) {
         Token regTk = nextToken();
         RegisterAddress reg = parseRegisterAddress(regTk);
-        if (plus) eat(PLUS);
+        if (plus) {
+            if (!match(PLUS)) {
+                return new RelativeAddress(0, reg.getReg());
+            }
+        }
 
         return new StackAddress(reg.getReg(), plus);
     }
@@ -431,14 +489,26 @@ public class Parser {
         int pc = currentAddress + 1;
         int pcReg = 15;
 
+        int number = 0;
+        Token plusOrMinus = peekToken();
+        while(match(PLUS) || match(MINUS)) {
+            Token numberToken = nextToken();
+            int tmp = Integer.parseInt(numberToken.lexeme);
+            //TODO: Support '<Zeichen>'
+
+            if (plusOrMinus.type == PLUS) number += tmp;
+            else number -= tmp;
+        }
+
         // In case we don't know the label yet, we have to fill the address in later
         if (address == null) {
             RelativeAddress addressToPatch = new RelativeAddress(pc, pcReg, labelName);
             labelsToPatch.add(addressToPatch);
             return addressToPatch;
         }
+        int offset = address - pc + number;
 
-        int offset = address - pc;
+
         return new RelativeAddress(offset, pcReg);
     }
 
@@ -510,14 +580,12 @@ public class Parser {
             }
             case CONSTANT -> number = Integer.parseInt(tk.lexeme);
             case IDENTIFIER -> {
-                eat(APOSTROPHE);
                 Token num = nextToken();
                 number = switch (tk.lexeme) {
                     case "B" -> Long.parseLong(num.lexeme, 2);
                     case "H" -> Long.parseLong(num.lexeme, 16);
                     default -> 0xCCCC_CCCC; //TODO: ERROR
                 };
-                eat(APOSTROPHE);
             }
             default -> {
                 number = 0xCCCC_CCCC;
