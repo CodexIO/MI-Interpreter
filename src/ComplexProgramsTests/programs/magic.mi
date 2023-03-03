@@ -1,0 +1,133 @@
+testMagic: SEG
+MOVE W I H'10000', SP
+JUMP start
+DD 100,200,255,300
+temp: RES 4
+EQU l = R5
+EQU summe1 = R6
+EQU summe2 = R7
+EQU vergleich = R8
+EQU i = R9
+EQU gleich = R10
+EQU magisch = R11
+EQU index = R12
+afelddeskriptor: DD W 2, 1, 3, 1, 3, 4, 28 -- Felddeskriptor
+matrix: DD W 6, 1, 8, 7, 5, 3, 2, 9, 4 -- Matrixelemente
+ifeld: RES 8
+start: CLEAR W -!SP
+MOVEA afelddeskriptor, -!SP
+CALL is_magic
+ADD W I 4, SP
+MOVE W !SP+, R0
+HALT
+is_magic: PUSHR
+MOVE W SP, R13
+MOVE W 64+!R13, R0 -- R0 ist die Basisadresse des Felddeeskriptors
+MOVE W 8+!R0, l
+CLEAR W summe1
+CLEAR W summe2
+CLEAR W vergleich
+MOVE W I 1, i
+MOVE W I 1, index
+JUMP test1
+for1: MOVE W index, ifeld
+MOVE W index, ifeld+4
+CLEAR W -!SP
+MOVEA ifeld, -!SP
+MOVEA afelddeskriptor, -!SP
+CALL adressefeldelement
+ADD W I 8, SP
+ADD W !!SP, summe1 -- summe1 := summe1 + m(index, index)
+ADD W I 4, SP
+SUB W index, l, temp
+ADD W I 1, temp, ifeld
+MOVE W index, ifeld+4
+CLEAR W -!SP
+MOVEA ifeld, -!SP
+MOVEA afelddeskriptor, -!SP
+CALL adressefeldelement
+ADD W I 8, SP
+ADD W !!SP, summe2 -- summe2 := summe2 + m(index, l - index + 1)
+ADD W I 4, SP
+ADD W I 1, index
+test1: CMP W index, l
+JLE for1
+MOVE W summe1, vergleich
+MOVE W I 0, gleich -- vorbelegen mit ’false’
+CMP W summe1, summe2
+JNE weiter
+MOVE W I 1, gleich -- gleich := ’true’
+weiter: JUMP while_test
+while_schleife: CLEAR W summe1
+CLEAR W summe2
+MOVE W I 1, index
+JUMP test2
+for2: MOVE W i, ifeld
+MOVE W index, ifeld+4
+CLEAR W -!SP
+MOVEA ifeld, -!SP
+MOVEA afelddeskriptor, -!SP
+CALL adressefeldelement
+ADD W I 8, SP
+ADD W !!SP, summe1 -- summe1 := summe1 + m(i, index)
+ADD W I 4, SP
+MOVE W index, ifeld
+MOVE W i, ifeld+4
+CLEAR W -!SP
+MOVEA ifeld, -!SP
+MOVEA afelddeskriptor, -!SP
+CALL adressefeldelement
+ADD W I 8, SP
+ADD W !!SP, summe2 -- summe2 := summe2 + m(index, i)
+ADD W I 8, SP
+ADD W I 1, index
+test2: CMP W index, l
+JLE for2
+ADD W I 1, i
+MOVE W I 0, gleich -- gleich mit ’false’ vorbesetzen
+CMP W summe1, vergleich
+JNE weiter2
+CMP W summe2, vergleich
+JNE weiter2
+MOVE W I 1, gleich
+weiter2:
+while_test: CMP W gleich, I 1
+JNE weiter3
+CMP W i, l
+JLE while_schleife
+weiter3: CMP W gleich, I 1
+JNE weiter4
+ADD W I 1, l, temp
+CMP W i, temp
+JEQ m_true
+weiter4: MOVE W I 0, magisch
+JUMP ende
+m_true: MOVE W I 1, magisch
+ende: MOVE W magisch, 68+!R13
+MOVE W R13, SP
+POPR
+RET
+adressefeldelement: PUSHR -- bekannt aus der Vorlesung
+MOVE W SP, R13
+CLEAR W R0
+MOVE W 64+!R13, R1
+MOVE W 68+!R13, R2
+MOVE W !R1+, R3
+loop: MOVE W !R2+, R4
+SUB W !R1+, R4
+JLT error
+CMP W !R1, R4
+JLE error
+MULT W !R1+, R0
+ADD W R4, R0
+SUB W I 1, R3
+JGT loop
+endloop: MULT W !R1+, R0
+ADD W !R1+, R0
+ADD W 64+!R13, R0
+MOVE W R0, 72+!R13
+POPR
+RET
+error: MOVE W I -1, R0
+HALT
+END

@@ -1,0 +1,61 @@
+SEG
+MOVE W I H'10000',SP
+JUMP start
+EQU RESULT=R0
+pos: RES 4
+cur: RES 1
+test1: DD B '(','(',')','(',')',')','#'
+test2: DD B '(',')',')','#'
+nextchar:
+	PUSHR
+MOVE W SP, R13
+CMP B cur, I 35
+JEQ weiter1
+ADD W I 1, pos
+MOVE W pos, R4
+MOVE B !R4, cur
+weiter1:
+POPR
+RET
+k:
+PUSHR
+MOVE W SP, R13
+CMP B cur, I 40
+JNE error
+schleife:
+CMP B cur, I 40
+JNE return
+CALL nextchar
+CMP B cur, I 40
+JNE weiter2
+CALL k
+weiter2:
+CMP B cur, I 41
+JNE error
+CALL nextchar
+JUMP schleife
+return:
+MOVE W R13,SP
+POPR
+RET
+s:
+PUSHR
+MOVE W SP, R13
+CMP B cur, I 35
+JEQ  return
+CALL k
+CMP B cur, I 35
+JNE error
+MOVE W R13,SP
+POPR
+RET
+start:
+MOVEA test2, pos
+MOVE W pos, R4
+MOVE B !R4, cur
+CALL s
+MOVE W I 0, RESULT
+JUMP ende
+error: MOVE W I 1, RESULT
+ende: HALT
+END

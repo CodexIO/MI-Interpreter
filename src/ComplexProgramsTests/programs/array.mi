@@ -1,0 +1,54 @@
+SEG
+MOVE W I H'10000', SP
+MOVEA HEAP, HP
+JUMP start
+Array: RES 400 -- statisches Array[0..99]
+newA: DD W 0 -- Zeiger auf dynamisches Array
+sort: PUSHR
+MOVE W 64+!SP, R0 -- R0 wird Zeiger auf array
+MOVE W 68+!SP, R6 -- R6 ist Anzahl der Worte
+SUB W I 1, R6
+CLEAR W R1 -- R1 wird i
+i_loop: MOVE W R1,R2 -- for R1 in 0..99 loop
+j_loop: CMP W !R0/R1/, !R0/R2/
+JLE weiter
+MOVE W !R0/R1/, R3 -- swap
+MOVE W !R0/R2/, !R0/R1/
+MOVE W R3, !R0/R2/
+weiter: ADD W I 1, R2
+CMP W R2, R6
+JLT j_loop
+ADD W I 1, R1
+CMP W R1, R6
+JLE i_loop
+POPR
+RET
+r_fill: PUSHR
+MOVE W 64+!SP, R0 -- R0 wird Zeiger auf array
+MOVE W 68+!SP, R6 -- R6 ist Anzahl der Worte
+CLEAR W R1
+MOVE W I 1783, R2 -- Initialisierung Random
+MOVE W I 9421, R4 -- a = Primzahl
+r_loop: MULT W R4, R2 -- Xn+1 := a * Xn
+ADD W I 4513, R2 -- + c
+ANDNOT W I H'FFFF0000', R2 -- mod 2^16
+MOVE W R2, !R0/R1/ -- Array[R1] := Xn+1
+ADD W I 1, R1
+CMP W R1, R6
+JLE r_loop
+POPR
+RET
+start: MOVE W I 100, -!SP
+MOVEA Array, -!SP
+CALL r_fill -- Array füllen
+ADD W I 8, SP
+MOVE W I 100, -!SP -- im Hauptprogramm
+MOVEA Array, -!SP
+CALL sort -- Array sortieren
+ADD W I 8, SP
+HALT
+error: HALT
+HP: DD W 0
+HEAP: RES 0
+END
+1

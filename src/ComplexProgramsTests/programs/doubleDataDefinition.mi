@@ -1,0 +1,5 @@
+JUMP start
+test:DD D 15
+start:
+MOVE D test, R0 --‹‹‹‹
+HALT 

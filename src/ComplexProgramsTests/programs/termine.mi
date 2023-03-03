@@ -1,0 +1,244 @@
+termine:             SEG
+                     MOVE W I H'10000', SP
+                     MOVEA heap, hp
+                     CALL init_types
+                     JUMP start
+
+                     EQU t=R4
+
+
+T_type:              RES 4
+PT_type:             RES 4
+TV_type:             RES 4
+HV_type:             RES 4
+R_type:              RES 4
+TB_type:             RES 4
+HVO_type:            RES 4
+
+
+TB_THV:              DD W 8
+                     DD W TB_absagen
+                     DD W TB_raumReservieren
+
+TB_TTV:              DD W 4
+                     DD W TB_absagen
+                     DD W TB_anzahlDerZusagen
+                     DD W TB_neueZusage
+                     DD W TB_teilnehmerEinladen
+
+TB_t:                DD W TB_upcast
+                     DD W TB_absagen
+                     DD W TB_anzahlDerZusagen
+                     DD W TB_neueZusage
+                     DD W TB_raumReservieren
+                     DD W TB_teilnehmerEinladen
+
+
+HVO_THV:             DD W 4
+                     DD W HVO_absagen
+                     DD W HVO_raumReservieren
+
+HVO_t:               DD W HVO_upcast
+                     DD W HVO_absagen
+                     DD W HVO_halten
+                     DD W HVO_raumReservieren
+
+
+TB_init:             PUSHR
+                     MOVE W SP, R13
+
+
+                     MOVE W 64+!R13, R0
+                     CLEAR W 4+!R0                     -- anzahlDerEinladungen = 0
+                     CLEAR W 8+!R0                     -- anzahlDerZusagen = 0
+                     CLEAR W 12+!R0                    -- raumReserviert = false
+
+                     MOVE W R13, SP
+                     POPR
+                     RET
+
+new_TB:              PUSHR
+                     MOVE W SP, R13
+                     MOVE W hp, R0
+                     ADD W I 24, hp
+                     ADD W I 8, R0, 64+!R13            -- Objektzeiger zurückliefern 
+                     MOVEA TB_THV, !R0
+                     MOVEA TB_TTV, 4+!R0
+                     MOVEA TB_t, 8+!R0
+
+                     ADD W I 8, R0, -!SP
+                     CALL TB_init
+                     ADD W I 4, SP
+
+                     MOVE W R13, SP
+                     POPR
+                     RET
+
+
+TB_upcast:           PUSHR
+                     MOVE W R13, SP
+                     
+                     MOVE W 64+!R13, R0
+                     MOVE W 68+!R13, R1
+
+                     CMP W R1, T_type
+                     JEQ ret_TTV
+
+                     CMP W R1, TV_type
+                     JEQ ret_TTV
+
+                     CMP W R1, HV_type
+                     JEQ ret_THV
+
+                     CMP W R1, TB_type
+                     JEQ ret_TB
+
+                     JUMP error                     --  ClassCastException
+
+ret_TTV:             SUB W I 4, R0, 72+!R13
+                     JUMP ret
+
+ret_THV:             SUB W I 8, R0, 72+!R13
+                     JUMP ret
+
+ret_TB:              MOVE W R0, 72+!R13
+ret:                 MOVE W R13, SP
+                     POPR
+                     RET
+
+
+
+TB_absagen:          -- nicht zu implementieren
+
+
+
+TB_anzahlDerZusagen: PUSHR
+                     MOVE W SP, R13
+                     MOVE W 64+!R13, R0
+                     MOVE W 8+!R0, 68+!R13             --  return this.anzahlDerZusagen
+                     MOVE W R13, SP
+                     POPR
+                     RET
+
+
+
+TB_neueZusage:       PUSHR
+                     MOVE W SP, R13
+                     MOVE W 64+!R13, R0
+                     ADD W I 1, 8+!R0                 --  anzahlDerZusagen++
+                     MOVE W R13, SP
+                     POPR
+                     RET
+
+
+TB_raumReservieren:  PUSHR
+                     MOVE W SP, R13
+                     MOVE W 64+!R13, R0
+                     MOVE W I 1, 12+!R0               --  raumReserviert := true
+                     MOVE W I 1, 68+!R13              --  return true
+                     MOVE W R13, SP
+                     POPR
+                     RET
+
+
+
+TB_teilnehmerEinladen:
+                     PUSHR
+                     MOVE W SP, R13
+                     MOVE W 64+!R13, R0
+                     ADD W I 1, 4+!R0                 --  anzahlDerEinladungen++
+                     MOVE W R13, SP
+                     POPR
+                     RET
+
+
+HVO_upcast:          -- nicht zu implementieren
+
+
+HVO_absagen:         -- nicht zu implementieren
+
+
+HVO_halten:          -- nicht zu implementieren
+
+
+HVO_raumReservieren: -- nicht zu implementieren
+
+
+
+
+init_types:          PUSHR
+                     MOVE W SP, R13
+                     
+                     MOVEA T_type, T_type
+                     MOVEA PT_type, PT_type
+                     MOVEA TV_type, TV_type
+                     MOVEA HV_type, HV_type
+                     MOVEA R_type, R_type
+                     MOVEA TB_type, TB_type
+                     MOVEA HVO_type, HVO_type
+
+                     MOVE W R13, SP
+                     POPR
+                     RET
+
+
+ladeTeilnehmerEin:   PUSHR
+                     MOVE W SP, R13
+
+                                                        --  statische Methode: Es gibt kein 'this'
+                     MOVE W 64+!R13, R1                 --  Zeiger auf t : Teamveranstaltung
+                     ADD W !!R1, R1, -!SP               --  Cast auf Klasse
+                     MOVE W !R1, R2
+                     CALL !(16+!R2)                     --  Teamveranstaltung_teilnehmerEinladen
+ 
+                     ADD W I 4, SP
+
+                     MOVE W R13, SP
+                     POPR
+                     RET
+
+reserviereRaum:      PUSHR
+                     MOVE W SP, R13
+
+                                                        --  statische Methode: Es gibt kein 'this'
+                     MOVE W 64+!R13, R1                 --  Zeiger auf h : Hausveranstaltung
+
+                     CLEAR W -!SP                       --  Platz für Ergebnis von raumReservieren
+                     ADD W !!R1, R1, -!SP               --  Cast auf Klasse
+                     MOVE W !R1, R2
+                     CALL !(8+!R2)                      --  Hausveranstaltung_raumReservieren
+                     ADD W I 4, SP
+
+                     MOVE W !SP+, 68+!R13               --  return h.raumReservieren()
+                     MOVE W R13, SP
+                     POPR
+                     RET
+
+
+start:               CLEAR W -!SP
+                     CALL new_TB
+                     MOVE W !SP+, t                     --  t = new Teambesprechung()
+
+
+                     SUB W I 4, t, -!SP                 --  cast nach Teamveranstaltung, kein TB_upcast notwendig
+                     CALL ladeTeilnehmerEin             --  Aufruf der statischen Methode
+                     ADD W I 4, SP
+
+                     CLEAR W -!SP
+                     SUB W I 8, t, -!SP                 --  cast nach Hausveranstaltung, kein TB_upcast notwendig
+                     CALL reserviereRaum                --  Aufruf der statischen Methode
+                     ADD W I 4, SP
+                    
+                     MOVE W !SP+, R5                    --  Ausgabe des Ergebnisses
+                     
+                     
+
+                     
+
+                     HALT
+
+error:               MOVE W I -1, R5
+ende:                HALT
+hp:                  RES 4
+heap:                RES 0
+                     END

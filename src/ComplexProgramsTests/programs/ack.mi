@@ -1,0 +1,59 @@
+ackAll: SEG
+MOVE W I 65536, SP
+JUMP start
+mEin: DD W 3
+nEin: DD W 3
+gesErg: DD W 0
+ack: JUMP acksta
+EQU m = 64+!R13
+EQU n = 68+!R13
+EQU erg = 72+!R13 -- erg im reservierten Platz des
+-- Funktionsergebnisses
+acksta: PUSHR -- ack(m,n:in integer) return integer
+MOVE W SP,R13
+if: CMP W I 0, m --if m=0 then goto fallN0
+JEQ fallM0
+elsif: CMP W I 0, n --if n=0 then goto fallM0
+JEQ fallN0
+else: --else: erg:=Ack(M-1,Ack(M,N-1))
+CLEAR W -!SP --Platz für Funktionsergebnis reservieren
+SUB W I 1, n, -!SP --2. Parameter ist (n-1)
+MOVE W m, -!SP --1. Parameter ist m
+CALL ack --REKURSIVER AUFRUF
+
+ADD W I 8, SP --Keller zurückstellen
+MOVE W !SP, -!SP --2.Parameter:
+-- (ack(m,n-1)) (soeben berechnet)
+--Ergebnis des 1. rekursiven Aufrufs als
+--2. Parameter des 2. rekursiven Aufrufs.
+--Dadurch immer noch Platz für Ergebnis
+--auf Stack reserviert (Ergebnis des 2. rek.
+--Aufrufs Überschreibt Ergebnis des
+--1. rekursiven Aufrufs)
+SUB W I 1, m, -!SP --1. Parameter (m-1)
+CALL ack --REKURSIVER AUFRUF
+ADD W I 8, SP --Keller zurückstellen
+MOVE W !SP+, erg --Gesamtergebnis bereitstellen
+JUMP reterg
+fallN0: --erg:=Ack(M-1,1);
+CLEAR W -!SP --Platz für Funktionsergebnis reservieren
+MOVE W I 1, -!SP --2. Parameter ist 1
+SUB W I 1, m, -!SP --1. Parameter ist (m-1)
+CALL ack --REKURSIVER AUFRUF
+ADD W I 8, SP --Keller zurückstellen
+MOVE W !SP+, erg --Ergebnis bereitstellen
+JUMP reterg
+fallM0: ADD W I 1, n, erg --erg := (n+1)
+JUMP reterg
+reterg: MOVE W R13,SP --Standardende, da erg schon an richtiger
+--Stelle auf dem Stack steht
+POPR
+RET
+start: CLEAR W -!SP
+MOVE W nEin, -!SP
+MOVE W mEin, -!SP
+CALL ack
+ADD W I 8, SP
+MOVE W !SP+, gesErg
+HALT
+END

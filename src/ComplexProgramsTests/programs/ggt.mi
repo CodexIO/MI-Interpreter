@@ -1,0 +1,44 @@
+SEG
+MOVE W I H'10000', SP -- initialisiere SP
+JUMP test
+EQU erg=R0
+EQU v=R1
+EQU w=R2
+EQU x=64+!R13
+EQU y=68+!R13
+EQU ggterg=72+!R13
+ggt: PUSHR
+MOVE W SP, R13
+CMP W x,y
+JNE elseFall2
+MOVE W x, ggterg
+JUMP return
+elseFall2: CMP W x,y
+JLE elseFall
+CLEAR W -!SP -- Platz für Ergebnis des rek. Aufrufs
+MOVE W y, -!SP -- 2. Parameter : y
+SUB W y, x, -!SP -- 1. Parameter : x-y
+CALL ggt -- ggt(x-y,y)
+ADD W I 8, SP -- Parameter vom Stack
+MOVE W !SP+, ggterg -- Ergebnis auf den Stack
+JUMP return
+elseFall: CLEAR W -!SP -- Platz für Ergebnis des rek. Aufrufs
+SUB W x, y, -!SP -- 2. Parameter : y-x
+MOVE W x, -!SP -- 1. Parameter : x
+CALL ggt -- ggt(x-y,y)
+ADD W I 8, SP -- Parameter vom Stack
+MOVE W !SP+, ggterg -- Ergebnis auf den Stack
+JUMP return
+return: MOVE W R13, SP -- Standardende des rekuriven UPs
+POPR
+RET
+test: MOVE W I 276, v
+MOVE W I 1242, w
+CLEAR W -!SP -- Standardaufruf von ggt
+MOVE W w, -!SP
+MOVE W v, -!SP
+CALL ggt
+ADD W I 8, SP -- Standardende
+MOVE W !SP+, erg
+HALT
+END

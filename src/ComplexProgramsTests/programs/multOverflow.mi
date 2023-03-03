@@ -1,0 +1,6 @@
+MOVE F I 0.1, R0
+schleife:
+ADD W I 1, R1
+MULT F I 10, R0
+JNV schleife
+HALT

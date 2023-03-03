@@ -1,0 +1,24 @@
+	SEG
+	JUMP	start	
+
+	EQU	pi=R0
+	EQU	term=R2
+	EQU	nenner=R4
+	EQU	vz=R6
+
+start:	MOVE D	I 0, pi
+	MOVE D	I 0, term
+	MOVE D 	I 1, nenner
+	MOVE D	I 1, vz
+
+schleife:
+	MULT D	nenner, vz, term
+	DIV D	term, I 4, term
+	ADD D	term, pi
+	ADD D	I 2, nenner
+	MOVEN D	vz, vz
+	CMP D	nenner, I 1000
+	JLT	schleife
+
+	HALT
+	END

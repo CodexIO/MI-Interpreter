@@ -1,0 +1,75 @@
+BigNat: SEG
+MOVE W I H'10000', SP -- Stack initialisieren
+MOVEA HEAP, HP -- Heap initialisieren
+JUMP start
+EQU null = I 0 -- für "Null"
+z1: DD W 0 -- Zeiger auf BigNat
+init: MOVE W R0, -!SP -- nur (!) R0 sichern
+MOVE W HP, R0
+ADD W I 8, HP -- Platz auf dem Heap
+MOVE W 8+!SP, !R0 -- die Zahl
+MOVE W null, 4+!R0 -- next auf null
+MOVE W R0, 12+!SP -- Zeiger zurückgeben
+MOVE W !SP+, R0 -- R0 wiederherstellen
+RET
+bigAdd: PUSHR
+MOVE W 64+!SP, R0 -- R0 := a
+MOVE W 68+!SP, R1 -- R1 := b
+MOVE W null, R2 -- R2 = erg
+MOVE W null, R3 -- R3 = aktZahl
+CLEAR W R4 -- R4 = c
+CLEAR W R5 -- R5 = carry
+loop_a: MOVE W R5, R4 -- c := carry
+MOVE W R4, R6 -- wenn carry, dann nicht fertig
+CLEAR W R5 -- carry := 0
+CMP W R0, null -- z1 /= null ?
+JEQ b_next
+MOVE W I 1, R6 -- fertig := false
+ADD W !R0, R4 -- c := c + a.Wert
+JNC n_car1
+MOVE W I 1, R5
+n_car1: MOVE W 4+!R0, R0 -- a := a.next
+b_next: CMP W R1, null -- b /= null ?
+JEQ next
+MOVE W I 1, R6 -- fertig := false
+ADD W !R1, R4 -- c := c + b.Wert
+JNC n_car2
+MOVE W I 1, R5
+n_car2: MOVE W 4+!R1, R1 -- b := b.next
+next: ADD W R5, R6
+JEQ fertig -- fertig, wenn carry und fertig = 0
+CMP W R2, null -- der erste Eintrag?
+JEQ erg_p
+MOVE W HP, 4+!R3 -- aktZahl.next := new Zahl
+MOVE W HP, R3 -- aktZahl := aktZahl.next
+ADD W I 8, HP
+MOVE W R4, !R3 -- aktZahl.Wert := c
+MOVE W null, 4+!R3 -- aktZahl.next := null
+JUMP loop_a
+erg_p: MOVE W HP, R3 -- aktZahl := new Zahl
+ADD W I 8, HP
+MOVE W R4, !R3 -- aktZahl.Wert := c
+MOVE W null, 4+!R3 -- aktZahl.next := null
+MOVE W R3, R2 -- erg := aktZahl
+JUMP loop_a
+fertig: MOVE W R2, 72+!SP -- return erg
+POPR
+RET
+start: CLEAR W -!SP -- Rückgabewert
+MOVE W I H'87654321', -!SP
+CALL init
+ADD W I 4, SP
+MOVE W !SP+, z1
+MOVE W I 68, R0 -- 68x
+loop: CLEAR W -!SP -- Rückgabewert
+MOVE W z1, -!SP
+MOVE W z1, -!SP
+CALL bigAdd
+ADD W I 8, SP -- Stack aufräumen
+MOVE W !SP+, z1 -- z1 := add(z1,z1)
+SUB W I 1, R0
+JNE loop
+HALT
+HP: DD W 0
+HEAP: DD W 0
+END

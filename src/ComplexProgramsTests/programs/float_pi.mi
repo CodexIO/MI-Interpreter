@@ -1,0 +1,22 @@
+piberechnen: SEG
+JUMP start
+EQU pi=R0
+EQU v=R1
+EQU i=R2
+EQU t=R3
+start: CLEAR F pi
+MOVE W I 1, v
+MOVE F I 1, i
+tberechnen: DIV F i, I 4, t
+CMP W v, I 1 -- v == 1?
+JEQ wahr
+falsch: SUB F t, pi
+MOVE W I 1, v
+JUMP weiter
+wahr: ADD F t, pi
+CLEAR W v
+weiter: ADD F I 2, i
+CMP F t, I 1E-5
+JGE tberechnen
+HALT
+END

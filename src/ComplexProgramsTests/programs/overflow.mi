@@ -1,0 +1,5 @@
+MOVE W I 100, R0
+schleife:
+MULT W I 10000, R0
+JNV schleife
+HALT

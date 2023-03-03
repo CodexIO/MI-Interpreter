@@ -1,0 +1,523 @@
+twothreeext:         SEG
+                     MOVE W I H'10000', SP
+                     MOVEA heap, hp
+                     JUMP start
+
+                     EQU thisvalue1 = 4+!R0
+                     EQU thisvalue2 = 8+!R0
+                     EQU thischild1 = 12+!R0
+                     EQU thischild2 = 16+!R0
+                     EQU thischild3 = 20+!R0
+
+l1:                  RES 4
+l2:                  RES 4
+l3:                  RES 4
+left:                RES 4
+middle:              RES 4
+right:               RES 4
+root:                RES 4
+
+
+Node23_mt:           DD W Node23_upcast
+                     DD W Node23_contains
+                     DD W Node23_noOfLeaves
+                     DD W Node23_positionInList
+
+new_Node23:          JUMP error
+
+Node23_upcast:       JUMP error
+
+Node23_contains:     JUMP error
+
+Node23_noOfLeaves:    JUMP error
+
+Node23_positionInList:   JUMP error
+
+
+Leaf23_mt:           DD W Leaf23_upcast
+                     DD W Leaf23_contains
+                     DD W Leaf23_noOfLeaves
+                     DD W Leaf23_positionInList
+
+Leaf23_init:         PUSHR
+                     MOVE W SP, R13
+                     MOVE W 64+!R13, R0
+                     MOVE W 68+!R13, 4+!R0
+                     MOVE W R13, SP
+                     POPR
+                     RET
+
+new_Leaf23:          PUSHR
+                     MOVE W SP, R13
+                     MOVE W hp, R0
+                     ADD W I 8, hp
+                     MOVE W R0, 68+!R13
+                     MOVEA Leaf23_mt, !R0
+
+                     MOVE W 64+!R13, -!SP
+                     MOVE W R0, -!SP
+                     CALL Leaf23_init
+                     ADD W I 8, SP
+
+                     MOVE W R13, SP
+                     POPR
+                     RET
+
+Leaf23_upcast:       -- not implemented
+                     JUMP ende
+
+Leaf23_contains:     PUSHR
+                     MOVE W SP, R13
+                     MOVE W 64+!R13, R0
+                     CMP W thisvalue1, 68+!R13
+                     JNE returnfalse
+                     MOVE W I 1, 72+!R13
+                     JUMP returnLeaf
+returnfalse:         MOVE W I 0, 72+!R13
+returnLeaf:          MOVE W R13, SP
+                     POPR
+                     RET
+
+Leaf23_noOfLeaves:   PUSHR
+                     MOVE W SP, R13
+                     MOVE W 64+!R13, R0
+                     MOVE W I 1, 68+!R13
+                     MOVE W R13, SP
+                     POPR
+                     RET
+
+
+Leaf23_positionInList:
+
+                     PUSHR
+                     MOVE W SP, R13
+                     MOVE W 64+!R13, R0
+                     CMP W 68+!R13, 4+!R0                    --  value == value1 ?
+                     JEQ ret1
+                     MOVE W I -999, 72+!R13
+                     JUMP return6
+
+ret1:                MOVE W I 1, 72+!R13
+return6:
+                     MOVE W R13, SP
+                     POPR
+                     RET
+
+
+Tree23_mt:           DD W Tree23_upcast
+                     DD W Tree23_contains
+                     DD W Tree23_noOfLeaves
+                     DD W Tree23_positionInList
+
+
+newTree23a:          PUSHR
+                     MOVE W SP, R13
+                     MOVE W hp, R0
+                     ADD W I 24, hp
+                     MOVE W R0, 76+!R13
+                     MOVEA Tree23_mt, !R0                     --  this = Methodentabelle
+
+                     MOVE W 72+!R13, -!SP
+                     MOVE W 68+!R13, -!SP
+                     MOVE W 64+!R13, -!SP
+                     MOVE W R0, -!SP
+                     CALL Tree23_ainit
+                     ADD W I 16, SP
+
+                     MOVE W R13, SP
+                     POPR
+                     RET          
+
+
+Tree23_ainit:        PUSHR
+                     MOVE W SP, R13
+                     MOVE W 64+!R13, R0 
+                     MOVE W 72+!R13, thisvalue1               --  this.value1 = value1
+                     CLEAR W thisvalue2                       --  this.value2 = null
+                     MOVE W 68+!R13, thischild1               --  this.child1 = child1
+                     MOVE W 76+!R13, thischild2               --  this.child2 = child2
+                     CLEAR W thischild3                       --  this.child3 = null
+
+                     MOVE W R13, SP
+                     POPR
+                     RET          
+
+newTree23b:          PUSHR
+                     MOVE W SP, R13
+                     MOVE W hp, R0
+                     ADD W I 24, hp
+                     MOVE W R0, 76+!R13
+                     MOVEA Tree23_mt, !R0                     --  this = Methodentabelle
+
+                     MOVE W 80+!R13, -!SP
+                     MOVE W 76+!R13, -!SP
+                     MOVE W 72+!R13, -!SP
+                     MOVE W 68+!R13, -!SP
+                     MOVE W 64+!R13, -!SP
+                     MOVE W R0, -!SP
+                     CALL Tree23_binit
+                     ADD W I 24, SP
+
+                     MOVE W R13, SP
+                     POPR
+                     RET          
+
+
+Tree23_binit:        PUSHR
+                     MOVE W SP, R13
+                     MOVE W 64+!R13, R0
+                     MOVE W 72+!R13, thisvalue1            --  this.value1 = value1
+                     MOVE W 80+!R13, thisvalue2            --  this.value2 = value2
+                     MOVE W 68+!R13, thischild1            --  this.child1 = child1
+                     MOVE W 76+!R13, thischild2            --  this.child2 = child2
+                     MOVE W 84+!R13, thischild3            --  this.child3 = child3
+
+                     MOVE W R13, SP
+                     POPR
+                     RET
+
+
+Tree23_upcast:       --  not implemented
+                     JUMP ende
+
+
+Tree23_contains:     PUSHR
+                     MOVE W SP, R13
+                     MOVE W 64+!R13, R0
+                     CMP W 68+!R13, thisvalue1            --  value == value1?
+                     JNE weiter
+
+                                                          --  value == value1
+                     MOVE W I 1, -!SP                     --  return true
+                     JUMP return
+
+weiter:              JGE weiter2
+
+                     MOVE W thischild1, R1                --  return child1.contains(value)
+                     CLEAR W -!SP                         --  Platz für Ergebnis
+                     MOVE W 68+!R13, -!SP                 --  value auf den Stack
+                     MOVE W R1, -!SP                      --  child1 auf den Stack
+                     MOVE W !R1, R2
+                     CALL !(4+!R2)                        --  child1.contains() aufrufen
+                     ADD W I 8, SP                        --  Parameter vom Stack
+                                                          --  Ergebnis ist auf dem Stack
+                     JUMP return                          --  return child1.contains(value)
+
+weiter2:                                                  --  value >= value1
+                     
+                     CMP W thischild3, I 0                --  child3 == null?
+                     JEQ child2_con
+
+                     CMP W 68+!R13, thisvalue2            --  value == value2?                    
+                     JNE weiter3
+
+                     MOVE W I 1, -!SP
+                     JUMP return                          --  return true
+
+weiter3:             JLT child2_con
+                                                          --  value >= value2
+                     MOVE W thischild3, R1
+                     CLEAR W -!SP                         --  Platz für Ergebnis
+                     MOVE W 68+!R13, -!SP                 --  value auf den Stack
+                     MOVE W R1, -!SP                      --  child3 auf den Stack
+                     MOVE W !R1, R2
+                     CALL !(4+!R2)                        --  child3.contains() aufrufen
+                     ADD W I 8, SP                        --  Parameter vom Stack
+                     JUMP return
+
+
+child2_con:          MOVE W thischild2, R1
+                     CLEAR W -!SP                         --  Platz für Ergebnis
+                     MOVE W 68+!R13, -!SP                 --  value auf den Stack
+                     MOVE W R1, -!SP                      --  child2 auf den Stack
+                     MOVE W !R1, R2
+                     CALL !(4+!R2)                        --  child2.contains() aufrufen
+                     ADD W I 8, SP                        --  Parameter vom Stack
+                    
+return:                                                   --  Ergebnis steht schon auf dem Stack
+                     MOVE W !SP+, 72+!R13 
+                     MOVE W R13, SP
+                     POPR
+                     RET
+
+
+Tree23_noOfLeaves:   CLEAR W -!SP
+                     MOVE W thischild1, R1
+                     MOVE W R1, -!SP
+                     MOVE W !R1, R2
+                     CALL !(8+!R2)                        --  child1.noOfLeaves()
+                     ADD W I 4, SP
+
+
+                     CLEAR W -!SP
+                     MOVE W thischild2, R1
+                     MOVE W R1, -!SP
+                     MOVE W !R1, R2
+                     CALL !(8+!R2)                        --  child2.noOfLeaves()
+                     ADD W I 4, SP
+
+                     ADD W !SP+, !SP+, -!SP               --  child1.noOfLeaves() + child2.noOfLeaves()
+                     
+                     CMP W thischild3, I 0                --  child3 == null ?
+                     JNE weiter5
+                     MOVE W !SP+, 68+!R13
+                     JUMP return5
+
+weiter5:             CLEAR W -!SP
+                     MOVE W thischild3, R1
+                     MOVE W R1, -!SP
+                     MOVE W !R1, R2
+                     CALL !(8+!R2)                        --  child3.noOfLeaves()
+                     ADD W I 4, SP
+
+                     ADD W !SP+, !SP+, 68+!R13
+
+return5:             MOVE W R13, SP
+                     POPR
+                     RET
+
+
+Tree23_positionInList:
+                     PUSHR
+                     MOVE W SP, R13
+                     MOVE W 64+!R13, R0
+                     CMP W 68+!R13, thisvalue1
+                     JNE w1
+
+                     CLEAR W  -!SP
+                     MOVE W thischild1, R1
+                     MOVE W R1, -!SP
+                     MOVE W !R1, R2
+                     CALL !(8+!R2)
+                     ADD W I 4, SP
+                     ADD W I 1, !SP+, 72+!R13               --  erg = thischild1.noOfLeaves() + 1
+                     JUMP r_p
+
+w1:                  CMP W 68+!R13, thisvalue1
+                     JGE w2
+                     CLEAR W -!SP
+                     MOVE W 68+!R13, -!SP
+                     MOVE W thischild1, R1
+                     MOVE W R1, -!SP
+                     MOVE W !R1, R2
+                     CALL !(12+!R2)
+                     ADD W I 8, SP
+                     MOVE W !SP+, 72+!R13                    -- erg = thischild1.positionInList(value)
+                     JUMP r_p
+
+w2:                  CMP W thischild3, I 0
+                     JNE w3
+                     CLEAR W -!SP
+                     MOVE W thischild1, R1
+                     MOVE W R1, -!SP
+                     MOVE W !R1, R2
+                     CALL !(8+!R2)                           -- child1.noOfLeaves()
+                     ADD W I 4, SP
+
+                     CLEAR W -!SP
+                     MOVE W 68+!R13, -!SP
+                     MOVE W thischild2, R1
+                     MOVE W R1, -!SP
+                     MOVE W !R1, R2
+                     CALL !(12+!R2)                         -- child2.positionInList(value)
+                     ADD W I 8, SP
+                     ADD W !SP+, !SP+, 72+!R13              -- erg = child1.noOfLeaves() + child2.positionInList(value)
+                     JUMP r_p
+
+
+w3:                  CMP W 68+!R13, thisvalue2
+                     JNE w4
+
+                     CLEAR W -!SP
+                     MOVE W thischild1, R1
+                     MOVE W R1, -!SP
+                     MOVE W !R1, R2
+                     CALL !(8+!R2)                          -- child1.noOfLeaves()
+                     ADD W I 4, SP
+
+                     CLEAR W -!SP
+                     MOVE W thischild2, R1
+                     MOVE W R1, -!SP
+                     MOVE W !R1, R2
+                     CALL !(8+!R2)                          -- child2.noOfLeaves()
+                     ADD W I 4, SP
+
+                     ADD W !SP+, !SP+, -!SP
+                     ADD W I 1, !SP+, 72+!R13               -- erg = child1.noOfLeaves() + child2.noOfLeaves() + 1
+
+                     JUMP r_p
+
+
+w4:                  CMP W 68+!R13, thisvalue2
+                     JGE w5
+
+                     CLEAR W -!SP
+                     MOVE W thischild1, R1
+                     MOVE W R1, -!SP
+                     MOVE W !R1, R2
+                     CALL !(8+!R2)                           --  child1.noOfLeaves()
+                     ADD W I 4, SP
+
+                     CLEAR W -!SP
+                     MOVE W 68+!R13, -!SP
+                     MOVE W thischild2, R1
+                     MOVE W R1, -!SP
+                     MOVE W !R1, R2
+                     CALL !(12+!R2)                          -- child2.positionInList(value)
+                     ADD W I 8, SP
+                     ADD W !SP+, !SP+, 72+!R13               -- erg = child1.noOfLeaves() + child2.positionInList(value)
+                     JUMP r_p
+
+
+w5:                  CLEAR W -!SP
+                     MOVE W thischild1, R1
+                     MOVE W R1, -!SP
+                     MOVE W !R1, R2
+                     CALL !(8+!R2)                           -- child1.noOfLeaves()
+                     ADD W I 4, SP
+
+                     CLEAR W -!SP
+                     MOVE W thischild2, R1
+                     MOVE W R1, -!SP
+                     MOVE W !R1, R2
+                     CALL !(8+!R2)                           -- child2.noOfLeaves()
+                     ADD W I 4, SP
+
+                     CLEAR W -!SP
+                     MOVE W 68+!R13, -!SP
+                     MOVE W thischild3, R1
+                     MOVE W R1, -!SP
+                     MOVE W !R1, R2
+                     CALL !(12+!R2)                          -- child3.positionInList(value)
+                     ADD W I 8, SP
+                     ADD W !SP+, !SP+, -!SP
+                     ADD W !SP+, !SP+, 72+!R13               -- erg = child1.noOfLeaves() + child2.noOfLeaves() + child3.positionInList(value)
+
+r_p:                 MOVE W R13, SP
+                     POPR
+                     RET
+                                         
+
+start:               CLEAR W -!SP
+                     MOVE W I 63, -!SP
+                     CALL new_Leaf23
+                     ADD W I 4, SP
+                     MOVE W !SP+, l1                      --  l1 := new Leaf23(63)
+
+                     CLEAR W -!SP
+                     MOVE W I 65, -!SP
+                     CALL new_Leaf23
+                     ADD W I 4, SP
+                     MOVE W !SP+, l2                      --  l2 := new Leaf23(65)
+
+                     CLEAR W -!SP
+                     MOVE W I 70, -!SP
+                     CALL new_Leaf23
+                     ADD W I 4, SP
+                     MOVE W !SP+, l3                      --  l3 := new Leaf23(70)
+
+
+                     CLEAR W -!SP
+                     MOVE W l3, -!SP
+                     MOVE W I 70, -!SP
+                     MOVE W l2, -!SP
+                     MOVE W I 65, -!SP
+                     MOVE W l1, -!SP
+                     CALL newTree23b
+                     ADD W I 16, SP
+                     MOVE W !SP+, left                     --  left ist berechnet
+
+                     CLEAR W -!SP
+                     MOVE W I 75, -!SP
+                     CALL new_Leaf23
+                     ADD W I 4, SP
+                     MOVE W !SP+, l1                       --  l1 := new Leaf23(75)
+
+                     CLEAR W -!SP
+                     MOVE W I 90, -!SP
+                     CALL new_Leaf23
+                     ADD W I 4, SP
+                     MOVE W !SP+, l2                       --  l2 := new Leaf23(90)
+
+
+                     CLEAR W -!SP
+                     MOVE W l2, -!SP
+                     MOVE W I 90, -!SP
+                     MOVE W l1, -!SP
+                     CALL newTree23a
+                     ADD W I 12, SP
+                     MOVE W !SP+, middle                   --  middle ist berechnet
+
+
+                     CLEAR W -!SP
+                     MOVE W I 91, -!SP
+                     CALL new_Leaf23
+                     ADD W I 4, SP
+                     MOVE W !SP+, l1                       --  l1 := new Leaf23(91)
+
+                     CLEAR W -!SP
+                     MOVE W I 94, -!SP
+                     CALL new_Leaf23
+                     ADD W I 4, SP
+                     MOVE W !SP+, l2                       --  l2 := new Leaf23(94)
+
+
+                     CLEAR W -!SP
+                     MOVE W l2, -!SP
+                     MOVE W I 94, -!SP
+                     MOVE W l1, -!SP
+                     CALL newTree23a
+                     ADD W I 12, SP
+                     MOVE W !SP+, right                    --  right ist berechnet
+
+
+                     CLEAR W -!SP
+                     MOVE W right, -!SP
+                     MOVE W I 91, -!SP
+                     MOVE W middle, -!SP
+                     MOVE W I 75, -!SP
+                     MOVE W left, -!SP
+                     CALL newTree23b
+                     ADD W I 16, SP
+                     MOVE W !SP+, root                     --  root ist berechnet
+
+
+
+
+                     CLEAR W -!SP
+                     MOVE W I 63, -!SP
+                     MOVE W  root, R0
+                     MOVE W R0, -!SP
+                     MOVE W !R0, R1
+                     CALL !(12+!R1)                        --  positionInList ist Methode 3
+                     ADD W I 8, SP
+                     MOVE W !SP+, R5                       -- R5 := root.positionInList(63)              
+
+
+                     CLEAR W -!SP
+                     MOVE W I 90, -!SP
+                     MOVE W root, R0
+                     MOVE W R0, -!SP
+                     MOVE W !R0, R1
+                     CALL !(12+!R1)                        --  positionInList ist Methode 3
+                     ADD W I 8, SP
+                     MOVE W !SP+, R6                       -- R6 := root.positionInList(90)              
+
+
+                     CLEAR W -!SP
+                     MOVE W I 91, -!SP
+                     MOVE W root, R0
+                     MOVE W R0, -!SP
+                     MOVE W !R0, R1
+                     CALL !(12+!R1)                        --  positionInList ist Methode 3
+                     ADD W I 8, SP
+                     MOVE W !SP+, R7                       -- R7 := root.positionInList(91)              
+
+
+                     HALT
+
+error:               MOVE W I -1, R5
+ende:                HALT                                 -- und schon endet das Hauptprogramm
+hp:                  RES 4
+heap:                RES 0
+                     END

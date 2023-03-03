@@ -1,0 +1,211 @@
+SEG
+MOVE W I H'10000', SP
+MOVEA heap, HP
+JUMP start
+t23: RES 4 -- Zeiger auf zu erzeugenden Baum
+--------------------------------------------------------------------------
+-- Methodentabellen
+--------------------------------------------------------------------------
+node23_mt: DD W node23_cont -- Node23 ist abstrakt definiert
+node23_new: -- kann daher weder erzeugt noch
+node23_cont: JUMP error -- Methoden darin aufgerufen werden
+leaf23_mt: DD W leaf23_cont
+iNode23_mt: DD W iNode23_cont
+--------------------------------------------------------------------------
+-- Konstruktor und Methoden der Klasse Leaf23
+--------------------------------------------------------------------------
+leaf23_new: PUSHR
+MOVE W HP, R0
+ADD W I 16, HP -- mt + value1 + value2 + count
+MOVEA leaf23_mt, !R0 -- mt Zeiger setzen
+MOVE W R0, 64+!SP -- neues Objekt zurückgeben(Zeiger)
+POPR
+RET
+leaf23_1init1: PUSHR
+MOVE W 64+!SP, R0 -- Objektzeiger holen
+MOVE W 68+!SP, 4+!R0 -- Parameter enthält value1
+MOVE W I 1, 12+!R0 -- Blatt enthält jetzt einen Wert
+POPR
+RET
+leaf23_2init2: PUSHR
+MOVE W 64+!SP, R0 -- Objektzeiger holen
+MOVE W 68+!SP, 4+!R0 -- 1. Parameter enthält value1
+MOVE W 72+!SP, 8+!R0 -- 2. Parameter enthält value2
+MOVE W I 1, 12+!R0 -- Blatt enthält jetzt zwei Werte
+POPR
+RET
+leaf23_cont: PUSHR
+MOVE W 64+!SP, R0 -- Zeiger auf Objekt in R0
+CMP W 4+!R0, 68+!SP -- if (value == value1)
+JEQ trueLeaf
+CMP W I 1, 12+!R0 -- if (count == 1)
+JEQ falseLeaf
+CMP W 8+!R0, 68+!SP -- if (value == value2)
+JNE falseLeaf
+trueLeaf: MOVE W I 1, 72+!SP
+POPR
+RET
+falseLeaf: MOVE W I 0, 72+!SP
+POPR
+RET
+--------------------------------------------------------------------------
+-- Konstruktor und Methoden der Klasse InnerNode23
+--------------------------------------------------------------------------
+iNode23_new: PUSHR
+MOVE W HP, R0
+ADD W I 28, HP -- mt+2*value+count+3*child=7*4=28
+MOVEA iNode23_mt, !R0 -- Methodentabelle
+MOVE W R0, 64+!SP
+POPR
+RET
+iNode23_3init3: PUSHR
+MOVE W 64+!SP, R0 -- Zeiger auf Objekt in R0
+MOVE W 72+!SP, 4+!R0 -- this.value1 = value1
+MOVE W 68+!SP, 16+!R0 -- this.child1 = child1
+MOVE W 76+!SP, 20+!R0 -- this.child2 = child2
+MOVE W I 1, 12+!R0 -- count = 1
+POPR
+RET
+iNode23_5init5: PUSHR
+MOVE W 64+!SP, R0 -- Zeiger auf Objekt in R0
+MOVE W 72+!SP, 4+!R0 -- this.value1 = value1
+MOVE W 80+!SP, 8+!R0 -- this.value1 = value2
+MOVE W 68+!SP, 16+!R0 -- this.child1 = child1
+MOVE W 76+!SP, 20+!R0 -- this.child2 = child2
+MOVE W 84+!SP, 24+!R0 -- this.child2 = child3
+MOVE W I 2, 12+!R0 -- count = 2
+POPR
+RET
+iNode23_cont: PUSHR
+MOVE W SP, R13
+MOVE W 64+!R13, R0 -- Zeiger auf Objekt in R0
+CMP W 68+!R13, 4+!R0 -- value == value1?
+JEQ trueNode
+JGT weiter
+MOVE W 16+!R0, R1 -- R1 := child1
+JUMP child_con -- return child1.contains(value)
+weiter: CMP W I 1, 12+!R0 -- count == 1?
+JEQ child2
+CMP W 68+!R13, 8+!R0 -- value == value2?
+JEQ trueNode
+JLT child2
+MOVE W 24+!R0, R1 -- R1 := child3
+JUMP child_con
+child2: MOVE W 20+!R0, R1 -- R1 := child2
+child_con: CLEAR W -!SP -- Platz für Ergebnis
+MOVE W 68+!R13, -!SP -- value auf den Stack
+MOVE W R1, -!SP -- child2 auf den Stack
+MOVE W !R1, R2
+CALL !!R2 -- child2.contains() aufrufen
+ADD W I 8, SP -- Parameter vom Stack
+return: MOVE W !SP+, 72+!R13 -- Ergebnis auf Stack zurückgeben
+MOVE W R13, SP
+POPR
+RET
+trueNode: MOVE W I 1, -!SP -- return true
+JUMP return
+--------------------------------------------------------------------------
+-- Erzeugen des gesamten Baums...
+--------------------------------------------------------------------------
+start: CLEAR W -!SP
+CALL leaf23_new
+MOVE W !SP+, R0
+MOVE W I 14, -!SP
+MOVE W I 11, -!SP
+MOVE W R0, -!SP
+CALL leaf23_2init2
+ADD W I 12, SP -- R0 := new Leaf23(11,14)
+CLEAR W -!SP
+CALL leaf23_new
+MOVE W !SP+, R1
+MOVE W I 17, -!SP
+MOVE W R1, -!SP
+CALL leaf23_1init1
+ADD W I 8, SP -- R1 := new Leaf23(17)
+CLEAR W -!SP
+CALL leaf23_new
+MOVE W !SP+, R2
+MOVE W I 22, -!SP
+MOVE W I 21, -!SP
+MOVE W R2, -!SP
+CALL leaf23_2init2
+ADD W I 12, SP -- R2 := new Leaf23(11,14)
+CLEAR W -!SP
+CALL iNode23_new
+MOVE W !SP+, R3
+MOVE W R2, -!SP
+MOVE W I 19, -!SP
+MOVE W R1, -!SP
+MOVE W I 15, -!SP
+MOVE W R0, -!SP
+MOVE W R3, -!SP
+CALL iNode23_5init5
+ADD W I 24, SP -- R3:=new iNode32(R0,15,R1,19,R2)
+CLEAR W -!SP
+CALL leaf23_new
+MOVE W !SP+, R0
+MOVE W I 25, -!SP
+MOVE W R1, -!SP
+CALL leaf23_1init1
+ADD W I 8, SP -- R0 := new Leaf23(25)
+CLEAR W -!SP
+CALL leaf23_new
+MOVE W !SP+, R1
+MOVE W I 45, -!SP
+MOVE W I 31, -!SP
+MOVE W R1, -!SP
+CALL leaf23_2init2
+ADD W I 12, SP -- R1 := new Leaf23(31,45)
+CLEAR W -!SP
+CALL iNode23_new
+MOVE W !SP+, R2
+MOVE W R1, -!SP
+MOVE W I 27, -!SP
+MOVE W R0, -!SP
+MOVE W R2, -!SP
+CALL iNode23_3init3
+ADD W I 16, SP -- R2 := new iNode32(R0, 27, R1)
+CLEAR W -!SP
+CALL iNode23_new
+MOVE W !SP+, t23
+MOVE W R2, -!SP
+MOVE W I 24, -!SP
+MOVE W R3, -!SP
+MOVE W t23, -!SP
+CALL iNode23_3init3
+ADD W I 16, SP -- t23 := new iNode32(R3, 24, R2)
+--------------------------------------------------------------------------
+-- Bauminhalt auf geforderte Werte prüfen
+--------------------------------------------------------------------------
+MOVE W t23, R0 -- Baum (t23) nach R0
+MOVE W !R0, R1 -- mt nach R1
+CLEAR W -!SP
+MOVE W I 11, -!SP
+MOVE W R0, -!SP
+CALL !!R1
+ADD W I 8, SP
+MOVE W !SP+, R5 -- R5 := t23.contains(11)
+CLEAR W -!SP
+MOVE W I 27, -!SP
+MOVE W R0, -!SP
+CALL !!R1
+ADD W I 8, SP
+MOVE W !SP+, R6 -- R6 := t23.contains(27)
+CLEAR W -!SP
+MOVE W I 31, -!SP
+MOVE W R0, -!SP
+CALL !!R1
+ADD W I 8, SP
+MOVE W !SP+, R7 -- R7 := t23.contains(31)
+CLEAR W -!SP
+MOVE W I 33, -!SP
+MOVE W R0, -!SP
+CALL !!R1
+ADD W I 8, SP
+MOVE W !SP+, R8 -- R8 := t23.contains(33)
+HALT
+error: MOVE W I -1, R5
+HALT
+HP: RES 4
+heap: RES 0
+END

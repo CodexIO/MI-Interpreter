@@ -1,0 +1,6 @@
+MOVE W I 100,R0
+JLE end
+ADD W I 1000, 2
+MOVE W I 0, R15
+end:
+HALT

@@ -1,0 +1,30 @@
+mult64: SEG
+MOVE W I H'12345000', R0 -- Testzahlen
+MOVE W I H'87654000', R1
+ANDNOT W I H'FFFF0000', R0, R8 -- b
+ANDNOT W I H'FFFF0000', R1, R9 -- d
+SH I -16, R0, R4 -- die oberen 16 Bit
+ANDNOT W I H'FFFF0000', R4 -- a
+SH I -16, R1, R5
+ANDNOT W I H'FFFF0000', R5 -- c
+MULT W R4, R5, R2 -- a*c
+MULT W R8, R9, R3 -- b*d
+MULT W R8, R5, R6 -- b*c
+MULT W R9, R4, R7 -- a*d
+SH I 16, R6, R8
+ADD W R8, R3 -- die niederwertigen Anteile aufaddieren
+JNC step1 -- Überlauf bei Addition?
+ADD W I 1, R2 -- Überlauf aufaddieren
+step1: SH I 16, R7, R8
+ADD W R8, R3
+JNC step2 -- Überlauf bei Addition?
+ADD W I 1, R2 -- Überlauf aufaddieren
+step2: SH I -16, R6, R8
+ANDNOT W I H'FFFF0000', R8
+ADD W R8, R2 -- die höherwertigen Anteile
+-- aufaddieren
+SH I -16, R7, R8
+ANDNOT W I H'FFFF0000', R8
+ADD W R8, R2
+HALT
+END

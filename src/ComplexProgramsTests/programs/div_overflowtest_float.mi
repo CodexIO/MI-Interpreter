@@ -1,0 +1,7 @@
+mult64: SEG
+SBPSW I H'20' -- Ausnahmebehandlung unterdrücken
+MOVE F I 0.1, R0
+schleife:
+ADD W I 1, R1DIV F I 10, R0
+JNV schleife
+HALT
