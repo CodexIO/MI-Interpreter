@@ -8,6 +8,8 @@ public class Token {
     public String lexeme;
 
     public enum Type {
+        I,
+        REGISTER,
         COMMA,
         POINT,
         MINUS,
