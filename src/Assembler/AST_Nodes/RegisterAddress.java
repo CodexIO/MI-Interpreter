@@ -2,7 +2,7 @@ package Assembler.AST_Nodes;
 
 public class RegisterAddress implements Operand {
 
-    private int reg;
+    private final int reg;
 
     public RegisterAddress(int r) {
         assert(r >= 0 && r <= 15);

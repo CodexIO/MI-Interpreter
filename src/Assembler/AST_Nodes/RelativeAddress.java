@@ -2,15 +2,15 @@ package Assembler.AST_Nodes;
 
 public class RelativeAddress implements Operand {
 
-    private int offset;
-    private int reg;
-    private int size;
+    public int offset;
+    public final int regX;
+    private final int size;
 
     public String labelName;
 
     public RelativeAddress(int o, int r) {
         offset = o;
-        reg = r;
+        regX = r;
 
         if (offset == 0) size = 1;
         else if (offset <= Byte.MAX_VALUE && offset >= Byte.MIN_VALUE) size = 2;
@@ -34,21 +34,21 @@ public class RelativeAddress implements Operand {
     @Override
     public byte[] generateMachineCode() {
         if (size == 1) {
-            byte b = (byte) (0x60 + reg);
+            byte b = (byte) (0x60 + regX);
             return new byte[]{b};
         }
         else if (size == 2) {
-            byte b = (byte) (0xA0 + reg);
+            byte b = (byte) (0xA0 + regX);
             return new byte[]{b, (byte)offset};
         }
         else if (size == 3) {
-            byte b = (byte) (0xC0 + reg);
+            byte b = (byte) (0xC0 + regX);
             byte n1 = (byte) (offset & 0xFF);
             byte n2 = (byte) ((offset >>> 8) & 0xFF);
             return new byte[]{b, n1, n2};
         }
         else {
-            byte b = (byte) (0xE0 + reg);
+            byte b = (byte) (0xE0 + regX);
             byte n1 = (byte) (offset & 0xFF);
             byte n2 = (byte) ((offset >>> 8) & 0xFF);
             byte n3 = (byte) ((offset >>> 16) & 0xFF);
