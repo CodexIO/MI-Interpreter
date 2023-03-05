@@ -1,11 +1,9 @@
 package IntegrationTests;
 
-import Assembler.Parser;
 import Interpreter.VirtualMachine;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import static Interpreter.VirtualMachine.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 
