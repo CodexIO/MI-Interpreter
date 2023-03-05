@@ -31,10 +31,10 @@ public class VirtualMachine {
         public static final int RELATIVE_ADDRESSING_WITH_BYTE = 10;
         public static final int RELATIVE_ADDRESSING_WITH_HALFWORD = 12;
         public static final int RELATIVE_ADDRESSING_WITH_WORD = 14;
-        public static final int INDICATED_RELATIVE_ADDRESSING = 4;
         public static final int INDIRECT_ADDRESSING_WITH_BYTE = 11;
         public static final int INDIRECT_ADDRESSING_WITH_HALFWORD = 13;
         public static final int INDIRECT_ADDRESSING_WITH_WORD = 15;
+        public static final int INDEXED_ADDRESSING = 4;
         public static final int STACK_ADDRESSING_WITH_MINUS = 7;
 
         private AddressType() {}
@@ -476,7 +476,7 @@ public class VirtualMachine {
             case AddressType.RELATIVE_ADDRESSING_WITH_WORD -> {
                 return computeRelativeAddressing(reg, WORD_SIZE);
             }
-            case AddressType.INDICATED_RELATIVE_ADDRESSING -> {
+            case AddressType.INDEXED_ADDRESSING -> {
                 //TODO: Implement me
             }
             case AddressType.INDIRECT_ADDRESSING_WITH_BYTE -> {
@@ -548,7 +548,7 @@ public class VirtualMachine {
                 address = computeAddress(b, addressType, reg, HALFWORD_SIZE);
             case AddressType.RELATIVE_ADDRESSING_WITH_WORD, AddressType.INDIRECT_ADDRESSING_WITH_WORD ->
                 address = computeAddress(b, addressType, reg, WORD_SIZE);
-            case AddressType.INDICATED_RELATIVE_ADDRESSING -> {
+            case AddressType.INDEXED_ADDRESSING -> {
                 //TODO: Implement me
             }
         }
