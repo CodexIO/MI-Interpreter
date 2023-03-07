@@ -2,6 +2,9 @@ package Assembler.AST_Nodes;
 
 import Assembler.OpCode;
 
+import java.util.ArrayList;
+import java.util.List;
+
 //TODO: Currently we'll only support Integers, maybe later we'll make the Command Generic?
 //TODO: We'll also use this class for every command at the moment,
 //TODO: because there doesn'T seem to be an obvious difference while generating code.
@@ -37,5 +40,15 @@ public class AST_Add extends Command {
         if (three) for(byte b : a3.generateMachineCode()) result[i++] = b;
 
         return result;
+    }
+
+    @Override
+    public List<Operand> getOperands() {
+        List<Operand> operands = new ArrayList<>();
+        operands.add(a1);
+        operands.add(a2);
+        if (a3 != null) operands.add(a3);
+
+        return operands;
     }
 }

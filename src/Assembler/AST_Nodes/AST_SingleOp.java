@@ -2,6 +2,9 @@ package Assembler.AST_Nodes;
 
 import Assembler.OpCode;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class AST_SingleOp extends Command {
 
     Operand a1;
@@ -21,5 +24,13 @@ public class AST_SingleOp extends Command {
         for (byte b : a1.generateMachineCode()) result[i++] = b;
 
         return result;
+    }
+
+    @Override
+    public List<Operand> getOperands() {
+        List<Operand> operands =  new ArrayList<>();
+        operands.add(a1);
+
+        return operands;
     }
 }

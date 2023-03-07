@@ -2,6 +2,7 @@ package Assembler.AST_Nodes;
 
 import Assembler.OpCode;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class AST_DataDefinition extends Command {
@@ -26,5 +27,10 @@ public class AST_DataDefinition extends Command {
             bytesArray[i] = bytes.get(i);
         }
         return bytesArray;
+    }
+
+    @Override
+    public List<Operand> getOperands() {
+        return new ArrayList<>();
     }
 }

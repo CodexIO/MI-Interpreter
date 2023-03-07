@@ -2,6 +2,8 @@ package Assembler.AST_Nodes;
 
 import Assembler.OpCode;
 
+import java.util.List;
+
 public abstract class Command {
 
     /**
@@ -12,7 +14,7 @@ public abstract class Command {
     /**
      * Adresse des Befehls im Speicher
      */
-    protected int address;
+    public int address;
 
     /**
      * Zeichenpostition - Beginn des Befehlswortes im Quelltext
@@ -58,5 +60,8 @@ public abstract class Command {
     public byte getOpCode() {
         return (byte) op.code;
     }
+
     public abstract byte[] generateMachineCode();
+
+    public abstract List<Operand> getOperands();
 }
