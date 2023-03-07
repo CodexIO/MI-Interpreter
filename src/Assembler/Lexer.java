@@ -81,6 +81,22 @@ public class Lexer {
         return new Token(row, col, lexeme, type);
     }
 
+    private boolean isRegister(String s) {
+        if (s.equals("SP") || s.equals("PC")) return true;
+        if (s.charAt(0) == 'R') {
+            //@Slow
+            String num = s.substring(1);
+
+            try {
+                int reg = Integer.parseInt(num);
+                return reg >= 0 && reg <= 15;
+            } catch (NumberFormatException e) {
+                return false;
+            }
+        }
+        return false;
+    }
+
     // @Speed This is horribly slow
     private boolean isKeyword(String s) {
         for (OpCode op : OpCode.values()) {
@@ -89,8 +105,6 @@ public class Lexer {
         }
         if (s.equals("DD")) return true;
         if (s.equals("RES"))return true;
-        if (s.equals("SP")) return true;
-        if (s.equals("PC")) return true;
 
         return false;
     }
@@ -152,9 +166,11 @@ public class Lexer {
             return lexEquals();
         }
 
-        if(isKeyword(tk.lexeme)) tk.type = Type.KEYWORD;
+        if (tk.lexeme.equals("I")) tk.type = Type.I;
+        else if (isRegister(tk.lexeme)) tk.type = Type.REGISTER;
         else if (tk.lexeme.equals("SEG")) tk.type = Type.SEG;
         else if (tk.lexeme.equals("END")) tk.type = Type.END;
+        else if (isKeyword(tk.lexeme)) tk.type = Type.KEYWORD;
 
         return maybeReplaceIdentifier(tk);
     }
@@ -212,7 +228,6 @@ public class Lexer {
             case '!' -> newToken(Type.BANG);
             case '/' -> newToken(Type.SLASH);
             case ':' -> newToken(Type.COLON);
-            case '\''-> newToken(Type.APOSTROPHE);
             case '(' -> newToken(Type.OPEN_PAREN);
             case ')' -> newToken(Type.CLOSE_PAREN);
             default -> newToken(Type.UNKNOWN);
