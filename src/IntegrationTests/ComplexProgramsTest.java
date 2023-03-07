@@ -1,4 +1,4 @@
-package ComplexProgramsTests;
+package IntegrationTests;
 
 import Assembler.Parser;
 import Interpreter.VirtualMachine;
@@ -17,7 +17,7 @@ public class ComplexProgramsTest {
     VirtualMachine vm = new VirtualMachine();
     Parser parser;
 
-    static final String PATH = "src/ComplexProgramsTests/programs/";
+    static final String PATH = "src/IntegrationTests/programs/";
 
     public static String readTestFile(String filename) {
         File file = new File(PATH + filename);
