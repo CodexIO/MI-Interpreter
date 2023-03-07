@@ -613,7 +613,6 @@ public class Parser {
     private ImmediateOperand parseFloat(OpCode.DataType size) {
         // @Note: We simply parse everything as a Double first
         // and later cast it to a float if a float is specified
-        // TODO: @Felix ist das okay so?
 
         Token tk = nextToken();
         double number = 0;
@@ -627,7 +626,7 @@ public class Parser {
                     String afterDecimalPoint = peekToken().type == CONSTANT ? nextToken().lexeme : "";
                     floatToParse = tk.lexeme + "." + afterDecimalPoint;
                 }
-                number = - Float.parseFloat(floatToParse);
+                number = - Double.parseDouble(floatToParse);
             }
             case CONSTANT -> {
                 String floatToParse = tk.lexeme;
@@ -635,7 +634,7 @@ public class Parser {
                     String afterDecimalPoint = peekToken().type == CONSTANT ? nextToken().lexeme : "";
                     floatToParse = tk.lexeme + "." + afterDecimalPoint;
                 }
-                number = Float.parseFloat(floatToParse);
+                number = Double.parseDouble(floatToParse);
             }
             case IDENTIFIER -> {
                 eat(APOSTROPHE);
