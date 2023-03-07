@@ -19,6 +19,9 @@ public class Parser {
     private final List<RelativeAddress> labelsToPatch = new ArrayList<>();
     private final Map<String, Integer> labelAddresses = new HashMap<>();
 
+    private final List<AST_DataDefinition> dataDefinitionsToPatch = new ArrayList<>();
+    private List<String> labelsToPatchInDD = new ArrayList<>();
+
     private int currentAddress = 0;
 
     public Parser(Lexer lexer) {
@@ -314,7 +317,13 @@ public class Parser {
         ArrayList<Byte> bytes = parseDataGroup();
 
         currentAddress += bytes.size();
-        return new AST_DataDefinition(null, command.row, address, command.col, -1, bytes);
+        var dataDefinition = new AST_DataDefinition(null, command.row, address, command.col, -1, bytes, labelsToPatchInDD);
+
+        if(!labelsToPatchInDD.isEmpty()) dataDefinitionsToPatch.add(dataDefinition);
+        labelsToPatchInDD = new ArrayList<>();
+
+
+        return dataDefinition;
     }
 
     private ArrayList<Byte> parseDataGroup() {
@@ -373,8 +382,9 @@ public class Parser {
                     Integer address = labelAddresses.get(labelName);
 
                     if (address == null) {
-                        // TODO: Handle labels not being defined.
-                        // Maybe we should pre parse to know all the labels ahead of time
+                        labelsToPatchInDD.add(labelName);
+                        for (int i = 0; i < 4; i++) bytes.add((byte) 0xDD);
+                        return bytes;
                     } else {
                         return getBytesFromNumber(address, WORD);
                     }
@@ -634,6 +644,23 @@ public class Parser {
                     String afterDecimalPoint = peekToken().type == CONSTANT ? nextToken().lexeme : "";
                     floatToParse = tk.lexeme + "." + afterDecimalPoint;
                 }
+                else {
+                    Token maybeE = peekToken();
+                    if (maybeE.type == IDENTIFIER && (maybeE.lexeme.equals("E") || maybeE.lexeme.equals("e"))) {
+                        advanceToken();
+                        double base = Double.parseDouble(floatToParse);
+
+                        int sign = 1;
+                        if (match(MINUS)) sign = -1;
+                        else if (match(PLUS)) sign = 1;
+                        Token numTk = nextToken();
+                        if (numTk.type != CONSTANT) System.out.println("ERROR Wrong E");
+                        double exp = sign * Integer.parseInt(numTk.lexeme);
+
+                        number = base * Math.pow(10, exp);
+                        break;
+                    }
+                }
                 number = Double.parseDouble(floatToParse);
             }
             case IDENTIFIER -> {
@@ -696,9 +723,18 @@ public class Parser {
                 int newSize = adr.size();
                 int offset = newSize - oldSize;
                 if (offset != 0) {
-                    System.out.println("Patching: " + adr.labelName);
                     patchLabelAddresses(adr.address, offset);
                     patchRelativeAddresses(adr.address, offset);
+                }
+            }
+        }
+        for (AST_DataDefinition dataDefinition : dataDefinitionsToPatch) {
+            for (String labelName : dataDefinition.labelsToPatch) {
+                Integer address = labelAddresses.get(labelName);
+                //TODO: ERROR Unknown label;
+                if (address == null) System.out.println("Unknown Label " + labelName);
+                else {
+                    dataDefinition.patchAddress(address);
                 }
             }
         }
@@ -724,9 +760,7 @@ public class Parser {
                     // instead of using labels. Do we need to patch those too?
                     if (rel.regX != 15) continue;
 
-                    System.out.println("Starting Address: " + startingAddress);
                     if (rel.address > startingAddress) {
-                        System.out.println("\tPatching Later with offset:" + offset);
                         rel.address += offset;
                         if (rel.address + rel.offset <= startingAddress) {
                             rel.offset -= offset;
@@ -734,7 +768,6 @@ public class Parser {
                     }
                     if (rel.address <= startingAddress && rel.address + rel.offset > startingAddress) {
                         rel.offset += offset;
-                        System.out.println("\tPatching Earlier with offset:" + offset);
                     }
                 }
             }
