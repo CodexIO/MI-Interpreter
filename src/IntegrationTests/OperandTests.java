@@ -1,21 +1,9 @@
 package IntegrationTests;
 
-import ComplexProgramsTests.ComplexProgramsTest;
-import Interpreter.VirtualMachine;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.BeforeEach;
 
-import static Interpreter.VirtualMachine.WORD_SIZE;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-
-public class OperandTests {
-    VirtualMachine vm = new VirtualMachine();
-
-    //TODO: Copied from ComplexProgramsTest, factor these together into a Parent Class
-    private void assertRegisterEquals(int expected, int reg) {
-        assertEquals(expected, vm.getRegister(reg, WORD_SIZE));
-    }
-
+public class OperandTests extends TestUtility {
 
     @BeforeEach
     public void init() {
@@ -24,7 +12,7 @@ public class OperandTests {
 
     @Test
     public void operandTest() {
-        String code = ComplexProgramsTest.readTestFile("everyOperand.mi");
+        String code = readTestFile("everyOperand.mi");
 
         vm.run(code);
 
