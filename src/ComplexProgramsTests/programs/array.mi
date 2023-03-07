@@ -40,7 +40,7 @@ POPR
 RET
 start: MOVE W I 100, -!SP
 MOVEA Array, -!SP
-CALL r_fill -- Array füllen
+CALL r_fill -- Array fï¿½llen
 ADD W I 8, SP
 MOVE W I 100, -!SP -- im Hauptprogramm
 MOVEA Array, -!SP
@@ -51,4 +51,3 @@ error: HALT
 HP: DD W 0
 HEAP: RES 0
 END
-1
