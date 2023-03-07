@@ -115,7 +115,7 @@ public class ComplexProgramsTest {
     public void floatPiTest() {
         runFile("float_pi.mi");
 
-        assertEquals(0x40490FFF, 0);
+        assertRegisterEquals(0x40490FFF, 0);
     }
 
     @Test
