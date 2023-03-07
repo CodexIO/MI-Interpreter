@@ -986,7 +986,7 @@ public class VirtualMachine {
         float result = switch (op) {
             case ADD -> a1 + a2;
             case SUB -> a2 - a1;
-            case MULT -> (long) a1 * a2;
+            case MULT -> a1 * a2;
             case DIV -> a2 / a1;
             default -> 0;
         };
@@ -1007,7 +1007,7 @@ public class VirtualMachine {
         double result = switch (op) {
             case ADD -> a1 + a2;
             case SUB -> a2 - a1;
-            case MULT -> (long) a1 * a2;
+            case MULT -> a1 * a2;
             case DIV -> a2 / a1;
             default -> 0;
         };
