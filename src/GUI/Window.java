@@ -226,8 +226,11 @@ class Window extends JFrame implements ActionListener {
 
     private void updateVmState() {
         registerPanel.updateRegisterValues();
-        memoryPanel.renderMemory();
         notificationPane.setText(vm.toString());
+        if (vm.memoryHasChanged) {
+            memoryPanel.renderMemory();
+            vm.memoryHasChanged = false;
+        }
     }
 
     private void evalMenuBar(ActionEvent e) {

@@ -62,7 +62,7 @@ public class VirtualMachine {
 
     private boolean justBreaked;
     public boolean programHaltet;
-
+    public boolean memoryHasChanged;
 
     // This is only used for DEBUG purposes
     private int pcIndexOfLastOperationExecuted;
@@ -156,6 +156,7 @@ public class VirtualMachine {
     public void setMemory(byte[] mem) {
         Arrays.fill(memory, (byte) 0);
         System.arraycopy(mem, 0, memory, 0, mem.length);
+        memoryHasChanged = true;
     }
 
     public void setLineNumberToAddress(List<Command> commands) {
@@ -397,6 +398,7 @@ public class VirtualMachine {
 
     private void setMemory(int address, int size, long result) {
         checkSize(size);
+        memoryHasChanged = true;
         switch (size) {
             case 1 -> setByte(address, result);
             case 2 -> setHalfword(address, result);
@@ -894,7 +896,7 @@ public class VirtualMachine {
     }
 
     private void moven_F() {
-        float result = getNextOperandAsFloat();
+        float result = - getNextOperandAsFloat();
 
         carry = false;
         overflow = false;
@@ -905,7 +907,7 @@ public class VirtualMachine {
     }
 
     private void moven_D() {
-        double result = getNextOperandAsDouble();
+        double result = - getNextOperandAsDouble();
 
         carry = false;
         overflow = false;
