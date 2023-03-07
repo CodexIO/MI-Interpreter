@@ -377,7 +377,7 @@ public class VirtualMachine {
     //TODO: It seems that we always want the memory with the Sign here, test this
     private int getNextMemory(int size) {
         //@Note: This function should never be called with size 8 which is only for Doubles
-        int result = getMemory(getPC(size), size);
+        int result = getMemory(getPC(), size);
         setPC(getPC(size) + size, size);
 
         return (int) doSignExtension(result, size);
@@ -416,6 +416,13 @@ public class VirtualMachine {
         int a = getNextMemory(sizeOfA);
         int address1 = getRegister(reg) + a;
         return getAddress(address1);
+    }
+
+    private int computeIndexedAddressing(int reg, int operandSize) {
+        // Check if the next address is relative or indirekt
+        int address = computeNextAddress(operandSize);
+        int regValue = getRegister(reg);
+        return address + regValue * operandSize;
     }
 
     private int computeNextAddress(int operandSize) {
@@ -477,7 +484,7 @@ public class VirtualMachine {
                 return computeRelativeAddressing(reg, WORD_SIZE);
             }
             case AddressType.INDEXED_ADDRESSING -> {
-                //TODO: Implement me
+                return computeIndexedAddressing(reg, operandSize);
             }
             case AddressType.INDIRECT_ADDRESSING_WITH_BYTE -> {
                 return computeIndirectAddressing(reg, BYTE_SIZE);
@@ -549,7 +556,7 @@ public class VirtualMachine {
             case AddressType.RELATIVE_ADDRESSING_WITH_WORD, AddressType.INDIRECT_ADDRESSING_WITH_WORD ->
                 address = computeAddress(b, addressType, reg, WORD_SIZE);
             case AddressType.INDEXED_ADDRESSING -> {
-                //TODO: Implement me
+                address = computeAddress(b, addressType, reg, operandSize);
             }
         }
 
@@ -639,6 +646,10 @@ public class VirtualMachine {
             }
             case AddressType.INDIRECT_ADDRESSING_WITH_WORD -> {
                 int address = computeIndirectAddressing(reg, WORD_SIZE);
+                setMemory(address, operandSize, result);
+            }
+            case AddressType.INDEXED_ADDRESSING -> {
+                int address = computeIndexedAddressing(reg, operandSize);
                 setMemory(address, operandSize, result);
             }
             default -> {
