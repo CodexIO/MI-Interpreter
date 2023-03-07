@@ -19,7 +19,7 @@ public class ComplexProgramsTest {
 
     static final String PATH = "src/ComplexProgramsTests/programs/";
 
-    private static String readTestFile(String filename) {
+    public static String readTestFile(String filename) {
         File file = new File(PATH + filename);
 
         try (FileReader fr = new FileReader(file)){
