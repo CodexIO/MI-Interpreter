@@ -268,6 +268,16 @@ public class VirtualMachine {
         };
     }
 
+    public float getRegisterAsFloat(int reg) {
+        int bits = registers[reg];
+        return Float.intBitsToFloat(bits);
+    }
+
+    public double getRegisterAsDouble(int reg) {
+        long bits = getWideRegister(reg);
+        return Double.longBitsToDouble(bits);
+    }
+
     public int getRegisterWithSign(int reg, int size) {
         int result = getRegister(reg, size);
         return switch(size) {
@@ -284,7 +294,9 @@ public class VirtualMachine {
 
     private long getWideRegister(int reg) {
         long result = getRegister(reg, WORD_SIZE);
-        result = result << 32 + getRegister((reg + 1) % 16);
+        //I hate Java for making me do this useless &
+        long second = getRegister((reg + 1) % 16) & 0x00000000_FFFF_FFFFL;
+        result = result << 32 | second;
         return result;
     }
 
@@ -987,10 +999,10 @@ public class VirtualMachine {
     private void arithmeticOperationOnDouble(Operation op, boolean twoOperands) {
         //TODO: Check if op is only add, sub, mult or div
 
-        double a1 = getNextOperandAsFloat();
+        double a1 = getNextOperandAsDouble();
 
         int addressOfSecondOperand = getPC();
-        double a2 = getNextOperandAsFloat();
+        double a2 = getNextOperandAsDouble();
 
         double result = switch (op) {
             case ADD -> a1 + a2;
