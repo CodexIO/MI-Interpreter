@@ -1,0 +1,36 @@
+JUMP start
+
+DD B 5
+DD B 0
+DD B 3
+DD W 3
+
+start:
+-- Init Stack
+MOVE W I 10000, SP
+MOVE B I 4, R10
+-- absolute Addressing
+MOVE B 3, R0
+
+-- immediate Operand
+MOVE B I 6, R1
+
+-- register Addressing
+MOVE B R0, R2
+
+-- relative Addressing
+MOVE B -2 + !R0, R3
+
+-- indirect Addressing
+MOVE B !(1 + !R0), R4
+
+-- indexed relative Addressing
+MOVE B -4+!R0/R10/, R5
+
+-- indexed indirect Addressing
+MOVE B !(1+!R0)/R1/, R6
+
+
+-- Stack Addressing
+MOVE B I 8, -!SP
+MOVE B !SP+, R7
