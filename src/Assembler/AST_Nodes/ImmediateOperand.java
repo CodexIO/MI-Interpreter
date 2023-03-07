@@ -2,6 +2,9 @@ package Assembler.AST_Nodes;
 
 import Assembler.OpCode;
 
+import static Assembler.OpCode.DataType.DOUBLE;
+import static Assembler.OpCode.DataType.FLOAT;
+
 public class ImmediateOperand implements Operand {
 
     long number;
@@ -13,16 +16,16 @@ public class ImmediateOperand implements Operand {
     }
 
     public ImmediateOperand(float n) {
-        this(Float.floatToIntBits(n), OpCode.DataType.FLOAT);
+        this(Float.floatToIntBits(n), FLOAT);
     }
 
     public ImmediateOperand(double n) {
-        this(Double.doubleToLongBits(n), OpCode.DataType.DOUBLE);
+        this(Double.doubleToLongBits(n), DOUBLE);
     }
 
     @Override
     public byte[] generateMachineCode() {
-        if (number >= 0 && number <= 63) return new byte[]{ (byte) number };
+        if (number >= 0 && number <= 63 && size != FLOAT && size != DOUBLE) return new byte[]{ (byte) number };
 
         byte op = (byte) 0x8F;
         byte b1 = (byte) (number >>> 7 * 8);
@@ -44,7 +47,7 @@ public class ImmediateOperand implements Operand {
 
     @Override
     public int size() {
-        if (number >= 0 && number <= 63) return 1;
+        if (number >= 0 && number <= 63 && size != FLOAT && size != DOUBLE) return 1;
         return switch(size) {
             case BYTE -> 2;
             case HALFWORD -> 3;
