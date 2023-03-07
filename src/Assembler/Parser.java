@@ -49,6 +49,12 @@ public class Parser {
         return tokens.get(tokenPosition);
     }
 
+    private Token peekPeekToken() {
+        int pos = tokenPosition + 1;
+        if (pos >= tokens.size()) return new Token(-1, -1, "", UNKNOWN);
+        return tokens.get(pos);
+    }
+
     private void eat(Token.Type type) {
         Token tk = nextToken();
         if (tk.type != type) {
@@ -275,38 +281,15 @@ public class Parser {
     private Operand parseOperand(OpCode.DataType size) {
         Token tk = nextToken();
 
-        if (tk.lexeme.equals("I")) {
-            return parseImmediateOperand(size);
-        }
-        else if (tk.type == CONSTANT) {
-            if (match(PLUS))
-                return parseRelativeAddress(tk);
-            else
-                return parseAbsoluteAddress(tk);
-        }
-        else if (tk.type == MINUS) {
-            if (match(BANG)) return parseStackAddressing(false);
-            //TODO: Figure out what to do here
-        }
-        else if (tk.lexeme.startsWith("R")) {
-            return parseRegisterAddress(tk);
-        }
-        else if (tk.type == KEYWORD) {
-            if (tk.lexeme.equals("PC")) return new RegisterAddress(VirtualMachine.PC_REGISTER);
-            if (tk.lexeme.equals("SP")) return new RegisterAddress(VirtualMachine.SP_REGISTER);
-        }
-        else if (tk.type == IDENTIFIER) {
-            return parseLabelAddress(tk);
-        }
-        else if (tk.type == BANG) {
-            //TODO: Handle the other types of Addressing that start with !
-            return parseStackAddressing(true);
-        }
-        else {
-            //TODO: ERROR
-        }
-
-        return null; //TODO: remove this
+        return switch(tk.type) {
+            case IDENTIFIER -> parseAbsoluteAddress(tk);
+            case I -> parseImmediateOperand(size);
+            case REGISTER -> parseRegisterAddress(tk);
+            case PLUS, CONSTANT -> parseAbsoluteAddressOrRelativeAddress(tk);
+            case MINUS -> parseAbsOrRelOrStack(tk);
+            case BANG -> parseOtherTypes(tk);
+            default -> null; //TODO Error
+        };
     }
 
     private Command parseReserve(Token command) {
@@ -439,29 +422,140 @@ public class Parser {
         return bytes;
     }
 
-    //TODO: For now this only handles !Rx+ and !Rx. These cases should be split up
-    // @Cleanup
-    private Operand parseStackAddressing(boolean plus) {
-        Token regTk = nextToken();
-        RegisterAddress reg = parseRegisterAddress(regTk);
-        if (plus) {
-            if (!match(PLUS)) {
-                return new RelativeAddress(0, reg.getReg());
+    private Operand parseAbsoluteAddressOrRelativeAddress(Token tk) {
+        switch (tk.type) {
+            case PLUS, MINUS -> {
+                if (peekToken().type == CONSTANT && peekPeekToken().type == PLUS)
+                    return parseIndexedOrRelativeAddress(tk);
+            }
+            case CONSTANT -> {
+                if (peekToken().type == PLUS) return parseIndexedOrRelativeAddress(tk);
             }
         }
+        return parseAbsoluteAddress(tk);
+    }
+
+    private Operand parseAbsOrRelOrStack(Token tk) {
+        if (peekToken().type == BANG) return parseStackAddressing(tk);
+        else return parseAbsoluteAddressOrRelativeAddress(tk);
+    }
+
+    private Operand parseAbsoluteAddress(Token tk) {
+        int sign = 1;
+
+        switch (tk.type) {
+            case IDENTIFIER -> {
+                return parseLabelAddress(tk);
+            }
+            case MINUS -> sign = -1;  // I don't know why you would support this for an Address, but it's written in the Grammar so...
+            case PLUS -> sign = 1;
+            case CONSTANT -> {
+                int address = Integer.parseInt(tk.lexeme);
+                return new AbsoluteAddress(address);
+            }
+        }
+        Token constant = nextToken();
+        if (constant.type != CONSTANT) return null; //ERROR
+
+        int address = sign * Integer.parseInt(tk.lexeme);
+        return new AbsoluteAddress(address);
+    }
+
+    private Operand parseOtherTypes(Token tk) {
+        Token.Type nextType = peekToken().type;
+        Token.Type nextNextType = peekPeekToken().type;
+
+        if (nextType == REGISTER && nextNextType == PLUS)
+            return parseStackAddressing(tk);
+
+        return parseRelativeOrIndirectAddress(tk);
+    }
+
+    private Operand parseStackAddressing(Token tk) {
+        boolean plus = true;
+
+        if (tk.type == MINUS) {
+            plus = false;
+            eat(BANG);
+        }
+        else assert(tk.type == BANG);
+
+        Token regTk = nextToken();
+        RegisterAddress reg = parseRegisterAddress(regTk);
+        if (plus) eat(PLUS);
 
         return new StackAddress(reg.getReg(), plus);
     }
 
-    private RelativeAddress parseRelativeAddress(Token tk) {
-        int offset = Integer.parseInt(tk.lexeme);
+    private Operand parseRelativeOrIndirectAddress(Token tk) {
+        Token.Type nextType = peekToken().type;
 
-        eat(BANG);
+        if (nextType == REGISTER)  return parseIndexedOrRelativeAddress(tk);
+
+        return parseIndexedOrIndirectAddress(tk);
+    }
+
+    private Operand parseIndexedAddress(Operand relOrIndAddress) {
+        RegisterAddress reg = parseRegisterAddress(nextToken());
+        eat(SLASH);
+        return new IndexedAddress(relOrIndAddress, reg.getReg());
+    }
+
+    private Operand parseIndexedOrRelativeAddress(Token tk) {
+        Operand operand = parseRelativeAddress(tk);
+
+        if (match(SLASH)) return parseIndexedAddress(operand);
+        else return operand;
+    }
+
+    private RelativeAddress parseRelativeAddress(Token tk) {
+        int offset = Integer.MIN_VALUE;
+
+        //TODO: Refactor this into it's own function
+        switch (tk.type) {
+            case PLUS -> {
+                Token number = nextToken();
+                // TODO CHECK IF CONSTANT WITH SOMETHING like Token expect(Token.Type type) returning the nextToken if it matches and if not errors
+                offset = Integer.parseInt(number.lexeme);
+            }
+            case MINUS -> {
+                Token number = nextToken();
+                // TODO CHECK IF CONSTANT WITH SOMETHING like Token expect(Token.Type type) returning the nextToken if it matches and if not errors
+                offset = - Integer.parseInt(number.lexeme);
+            }
+            case CONSTANT -> {
+                offset = Integer.parseInt(tk.lexeme);
+            }
+        }
+        if (offset != Integer.MIN_VALUE) {
+            eat(PLUS);
+            eat(BANG);
+        }
+        else offset = 0;
 
         Token regTk = nextToken();
         RegisterAddress reg = parseRegisterAddress(regTk);
 
-        return new RelativeAddress(offset, reg.getReg());
+        return new RelativeAddress(currentAddress, offset, reg.getReg());
+    }
+
+    private Operand parseIndexedOrIndirectAddress(Token tk) {
+        Operand operand = parseIndirectAddress(tk);
+
+        if (match(SLASH)) return parseIndexedAddress(operand);
+        else return operand;
+    }
+
+    private IndirectAddress parseIndirectAddress(Token tk) {
+        assert(tk.type == BANG);
+
+        eat(OPEN_PAREN);
+        // Relative and Indirect use the same information for generating
+        // machine code.
+        RelativeAddress relAddress = parseRelativeAddress(nextToken());
+        eat(CLOSE_PAREN);
+
+        return new IndirectAddress(relAddress);
     }
 
     private RegisterAddress parseRegisterAddress(Token tk) {
@@ -477,16 +571,10 @@ public class Parser {
         return new RegisterAddress(reg);
     }
 
-    private AbsoluteAddress parseAbsoluteAddress(Token tk) {
-        int address = Integer.parseInt(tk.lexeme);
-
-        return new AbsoluteAddress(address);
-    }
-
     private RelativeAddress parseLabelAddress(Token tk) {
         String labelName = tk.lexeme;
         Integer address = labelAddresses.get(labelName);
-        int pc = currentAddress + 1;
+        int pc = currentAddress;
         int pcReg = 15;
 
         int number = 0;
@@ -506,10 +594,10 @@ public class Parser {
             labelsToPatch.add(addressToPatch);
             return addressToPatch;
         }
-        int offset = address - pc + number;
+        int offset = address - (pc + 1) + number;
 
 
-        return new RelativeAddress(offset, pcReg);
+        return new RelativeAddress(pc, offset, pcReg);
     }
 
     private ImmediateOperand parseImmediateOperand(OpCode.DataType size) {
@@ -601,7 +689,56 @@ public class Parser {
 
             //TODO: ERROR Unknown label;
             if (address == null) System.out.println("Unknown Label " + adr.labelName);
-            else adr.patchLabel(address);
+            else {
+                int oldSize = adr.size();
+
+                adr.patchLabel(address);
+
+                int newSize = adr.size();
+                int offset = newSize - oldSize;
+                if (offset != 0) {
+                    System.out.println("Patching: " + adr.labelName);
+                    patchLabelAddresses(adr.address, offset);
+                    patchRelativeAddresses(adr.address, offset);
+                }
+            }
+        }
+    }
+
+    private void patchLabelAddresses(int startingAddress, int offset) {
+        for (var key: labelAddresses.keySet()) {
+            int address = labelAddresses.get(key);
+            if (address > startingAddress) {
+                address += offset;
+                labelAddresses.put(key, address);
+            }
+        }
+    }
+
+    private void patchRelativeAddresses(int startingAddress, int offset) {
+        for (Command command : commands) {
+            if (command.address > startingAddress) command.address += offset;
+
+            for (Operand op : command.getOperands()) {
+                if (op instanceof RelativeAddress rel) {
+                    // TODO: What about Relative Addresses that are explicitly encoded as 5 + R15,
+                    // instead of using labels. Do we need to patch those too?
+                    if (rel.regX != 15) continue;
+
+                    System.out.println("Starting Address: " + startingAddress);
+                    if (rel.address > startingAddress) {
+                        System.out.println("\tPatching Later with offset:" + offset);
+                        rel.address += offset;
+                        if (rel.address + rel.offset <= startingAddress) {
+                            rel.offset -= offset;
+                        }
+                    }
+                    if (rel.address <= startingAddress && rel.address + rel.offset > startingAddress) {
+                        rel.offset += offset;
+                        System.out.println("\tPatching Earlier with offset:" + offset);
+                    }
+                }
+            }
         }
     }
 }
