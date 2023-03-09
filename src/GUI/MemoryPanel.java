@@ -14,7 +14,7 @@ public class MemoryPanel extends JPanel {
     public MemoryPanel(VirtualMachine vm) {
         this.vm = vm;
         this.add(scrollPane);
-        scrollPane.setPreferredSize(new Dimension(280, 400));
+        scrollPane.setPreferredSize(new Dimension(280, 550));
 
         memory.setFont(new Font("Courier New", Font.PLAIN, 14)); //TODO: Set this as the default Font for everything
         memory.setEditable(false); //TODO: Maybe we later wanna allow editing the memory

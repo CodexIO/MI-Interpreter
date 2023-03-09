@@ -4,7 +4,8 @@ public enum RegisterViewType {
     BINARY("Binär"),
     DECIMAL("Dezimal"),
     HEX("Hexadezimal"),
-    FLOAT("Float");
+    FLOAT("Float"),
+    DOUBLE("Double");
 
     private final String name;
 

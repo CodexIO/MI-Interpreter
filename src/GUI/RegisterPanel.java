@@ -28,29 +28,34 @@ public class RegisterPanel extends JPanel implements ActionListener {
 
         String text = "";
         switch (regView) {
-            case DECIMAL:
-                text = Integer.toString(regValue);
-                break;
-            case BINARY:
+            case DECIMAL -> text = Integer.toString(regValue);
+            case BINARY -> {
                 text = Integer.toBinaryString(regValue);
                 if (false /* SHOW LEADING ZEROS */) {
                     //text = String.format("%1$" + CONSTANTS.WORD_SIZE * 8 + "s", text).replace(" ", "0");
                 }
-                break;
-            case HEX:
-                text = Integer.toHexString(regValue).toUpperCase();
+            }
+            case HEX -> text = Integer.toHexString(regValue).toUpperCase();
+
                 /*if (Enviroment.showLeadingZeros) {
                     text = String.format("%1$" + CONSTANTS.WORD_SIZE * 2 + "s", text).replace(" ", "0");
                 }*/
-                break;
-            case FLOAT:
+            case FLOAT -> {
                 float number = Float.intBitsToFloat(regValue);
                 if (Float.isNaN(number)) {
                     text = "NaN";
                 } else {
                     text = Float.toString(number);
                 }
-                break;
+            }
+            case DOUBLE -> {
+                double num = vm.getRegisterAsDouble(regNum);
+                if (Double.isNaN(num)) {
+                    text = "NaN";
+                } else {
+                    text = Double.toString(num);
+                }
+            }
         }
         JTextField textField = registerTextFields[regNum];
 
@@ -62,10 +67,11 @@ public class RegisterPanel extends JPanel implements ActionListener {
     private JPanel createChooserAndRegistersPanel() {
         JPanel chooserAndRegisters = new JPanel();
         JPanel chooserPanel = new JPanel();
-        chooser.addItem(DECIMAL);
-        chooser.addItem(BINARY);
-        chooser.addItem(HEX);
-        chooser.addItem(FLOAT);
+
+        for (RegisterViewType type : RegisterViewType.values()) {
+            chooser.addItem(type);
+        }
+
         chooser.setSelectedItem(DECIMAL);
         chooser.addActionListener(this);
 

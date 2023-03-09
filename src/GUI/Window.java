@@ -29,19 +29,19 @@ class Window extends JFrame implements ActionListener {
     private final ButtonPanel buttonPanel = new ButtonPanel(this);
     private final RegisterPanel registerPanel = new RegisterPanel(vm);
     private final MemoryPanel memoryPanel = new MemoryPanel(vm);
-    private final FlagsPanel flagPanel = new FlagsPanel();
+    private final FlagsPanel flagPanel = new FlagsPanel(vm);
 
     //These are used to divide the different Views we want to render
     private final JPanel upperPanel = new JPanel();
     private final JPanel centerPanel = new JPanel();
+    private final JPanel centerRightPanel = new JPanel();
     private final JPanel lowerPanel = new JPanel();
 
     private final RSyntaxTextArea textEditor = new RSyntaxTextArea();
-    RTextScrollPane scroll = new RTextScrollPane(textEditor);
+    private final RTextScrollPane scroll = new RTextScrollPane(textEditor);
     private final JTextPane notificationPane = new JTextPane();
 
     private final JPanel mainPanel = new JPanel();
-
 
     // Constructor
     Window()
@@ -97,16 +97,8 @@ class Window extends JFrame implements ActionListener {
         m2.add(mi5);
         m2.add(mi6);
 
-        JMenuItem mc = new JMenuItem("close");
-        mc.addActionListener(this);
-
-        JMenuItem runButton = new JMenuItem("Run");
-        runButton.addActionListener(this);
-
         mb.add(m1);
         mb.add(m2);
-        mb.add(mc);
-        mb.add(runButton);
 
         setJMenuBar(mb);
     }
@@ -124,18 +116,28 @@ class Window extends JFrame implements ActionListener {
         centerPanel.setBorder(new LineBorder(Color.black));
         centerPanel.add(registerPanel);
         centerPanel.add(scroll);
-        centerPanel.add(memoryPanel);
+        centerPanel.add(centerRightPanel);
+
+        centerRightPanel.setLayout(new BoxLayout(centerRightPanel, BoxLayout.Y_AXIS));
+        centerRightPanel.add(memoryPanel);
+        centerRightPanel.add(flagPanel);
 
         lowerPanel.add(notificationPane);
         lowerPanel.setBorder(new LineBorder(Color.black));
 
         add(mainPanel);
 
+        upperPanel.setMaximumSize(new Dimension(4000, 100));
+        registerPanel.setMaximumSize(new Dimension(200, 700));
+        centerRightPanel.setMaximumSize(new Dimension(300, 700));
+        lowerPanel.setPreferredSize(new Dimension(850, 150));
+
+        notificationPane.setPreferredSize(new Dimension(850, 150));
 
         AbstractTokenMakerFactory atmf = (AbstractTokenMakerFactory) TokenMakerFactory.getDefaultInstance();
         atmf.putMapping("text/mi", "Assembler.MiTokenMaker");
         textEditor.setSyntaxEditingStyle("text/mi");
-        //textEditor.setFont(new Font("Courier New", Font.PLAIN, 14));
+        textEditor.setFont(new Font("Monospaced", Font.PLAIN, 14));
         textEditor.setText("ADD B I 5, I 5, R0");
 
         scroll.setPreferredSize(new Dimension(400, 700));
@@ -159,7 +161,7 @@ class Window extends JFrame implements ActionListener {
             vm.setMemory(parser.generateMachineCode());
             vm.setLineNumberToAddress(parser.getCommands());
 
-            updateVmState();
+            updateVmState("Program assembled successfully");
             buttonPanel.run.setEnabled(true);
             buttonPanel.debug.setEnabled(true);
             buttonPanel.step.setEnabled(true);
@@ -167,7 +169,7 @@ class Window extends JFrame implements ActionListener {
             vm.setBreakpoints(new int[0]);
             vm.run();
 
-            updateVmState();
+            updateVmState("Program ran successfully");
             updateButtons();
         } else if (src == buttonPanel.debug) {
             Gutter gutter = scroll.getGutter();
@@ -188,13 +190,13 @@ class Window extends JFrame implements ActionListener {
             vm.run();
 
             highlightNextLineToBeExecuted();
-            updateVmState();
+            updateVmState("Debugging");
             updateButtons();
         } else if (src == buttonPanel.step) {
             vm.step();
 
             highlightNextLineToBeExecuted();
-            updateVmState();
+            updateVmState("Stepping");
             updateButtons();
         } else if (src == buttonPanel.stop) {
 
@@ -224,9 +226,10 @@ class Window extends JFrame implements ActionListener {
         }
     }
 
-    private void updateVmState() {
+    private void updateVmState(String message) {
         registerPanel.updateRegisterValues();
-        notificationPane.setText(vm.toString());
+        flagPanel.updateFlags();
+        notificationPane.setText(message);
         if (vm.memoryHasChanged) {
             memoryPanel.renderMemory();
             vm.memoryHasChanged = false;
