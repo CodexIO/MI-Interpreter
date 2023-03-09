@@ -9,7 +9,10 @@ public class IndirectAddress implements Operand {
     public IndirectAddress(RelativeAddress relativeAddress) {
         offset = relativeAddress.offset;
         regX = relativeAddress.regX;
-        size = relativeAddress.size();
+
+        int relSize = relativeAddress.size();
+        // This is due to the fact that indirect Addressing always saves the offset, no matter if it's zero or not
+        size = (relSize == 1) ? 2 : relSize;
     }
 
     @Override
