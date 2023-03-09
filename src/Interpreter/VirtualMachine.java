@@ -883,9 +883,7 @@ public class VirtualMachine {
     }
 
     private void moven_I(int size) {
-        long negativeBit = 0x80L << ((size - 1) * 8);
-        long a1 = getNextOperand(size);
-        long result = a1 ^ negativeBit;
+        long result = - getNextOperandWithSign(size);
 
         carry = false;
         setOverflow(result, size);
@@ -938,7 +936,7 @@ public class VirtualMachine {
     }
 
     private void conv() {
-        int a1 = (int) getNextOperand(BYTE_SIZE);
+        int a1 = (int) getNextOperandWithSign(BYTE_SIZE);
 
         carry = false;
         overflow = false;
@@ -1025,8 +1023,7 @@ public class VirtualMachine {
         int result;
 
         if (a1 >= 0) result = a2 << a1;
-        else result = a2 >>> -a1;
-
+        else result = a2 >> -a1;
 
         carry = false;
         //TODO: Set overflow with IOVL (integer overflow)
