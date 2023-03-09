@@ -292,6 +292,18 @@ public class Parser {
             case MINUS -> parseAbsOrRelOrStack(tk);
             case BANG -> parseOtherTypes(tk);
             default -> null; //TODO Error
+
+            /*
+            FIRST Mengen:
+                <absolute>  = +, -, CONSTANT, ident
+                <immediate> = I
+                <register>  = Rx, SP, PC
+                <relative>  = !Rx, !SP, !PC, +, -, CONSTANT
+                <indirekt>  = !!Rx, !!SP, !!PC, !<relativ>
+                <indz rela> = <relativ> /Rx/
+                <indz indr> = <indirekt> /Rx/
+                <keller>    = -!Rx, !Rx+
+             */
         };
     }
 
@@ -329,15 +341,15 @@ public class Parser {
     private ArrayList<Byte> parseDataGroup() {
         ArrayList<Byte> bytes = new ArrayList<>();
 
-        do {
-            Token tk = nextToken();
-            OpCode.DataType size = getDataType(tk);
+        Token tk = nextToken();
+        OpCode.DataType size = getDataType(tk);
+        if (size != NONE) tk = nextToken();
 
-            if (size != NONE) tk = nextToken();
-
+        while (true) {
             bytes.addAll(parseDataElement(size, tk));
-
-        } while (match(COMMA));
+            if (!match(COMMA)) break;
+            tk = nextToken();
+        }
 
         return bytes;
     }
@@ -379,15 +391,10 @@ public class Parser {
                     return getBytesFromNumber(number, size);
                 } else {
                     String labelName = tk.lexeme;
-                    Integer address = labelAddresses.get(labelName);
 
-                    if (address == null) {
-                        labelsToPatchInDD.add(labelName);
-                        for (int i = 0; i < 4; i++) bytes.add((byte) 0xDD);
-                        return bytes;
-                    } else {
-                        return getBytesFromNumber(address, WORD);
-                    }
+                    labelsToPatchInDD.add(labelName);
+                    for (int i = 0; i < 4; i++) bytes.add((byte) 0xDD);
+                    return bytes;
                 }
             }
         }
@@ -559,12 +566,21 @@ public class Parser {
     private IndirectAddress parseIndirectAddress(Token tk) {
         assert(tk.type == BANG);
 
-        eat(OPEN_PAREN);
+        RelativeAddress relAddress;
+        if (match(OPEN_PAREN)) {
+            relAddress = parseRelativeAddress(nextToken());
+            eat(CLOSE_PAREN);
+        }
+        else {
+            if (peekToken().type != BANG) {
+                String info = "[" + peekToken().row + ", " + peekToken().col + "] ";
+                System.err.println(info + "Expected ! or ( after !");
+            }
+            relAddress = parseRelativeAddress(nextToken());
+        }
+
         // Relative and Indirect use the same information for generating
         // machine code.
-        RelativeAddress relAddress = parseRelativeAddress(nextToken());
-        eat(CLOSE_PAREN);
-
         return new IndirectAddress(relAddress);
     }
 
