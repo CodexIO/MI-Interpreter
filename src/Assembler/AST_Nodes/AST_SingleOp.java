@@ -16,7 +16,7 @@ public class AST_SingleOp extends Command {
 
     @Override
     public byte[] generateMachineCode() {
-        int size = 1 + a1.size();
+        int size = size();
         byte[] result = new byte[size];
 
         int i = 0;
@@ -24,6 +24,11 @@ public class AST_SingleOp extends Command {
         for (byte b : a1.generateMachineCode()) result[i++] = b;
 
         return result;
+    }
+
+    @Override
+    public int size() {
+        return 1 + a1.size();
     }
 
     @Override

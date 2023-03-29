@@ -4,6 +4,7 @@ import Assembler.AST_Nodes.Command;
 import Assembler.OpCode;
 import Assembler.Parser;
 
+import java.io.PrintStream;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -53,23 +54,21 @@ public class VirtualMachine {
     private final byte[] memory = new byte[MEMORY_LENGTH];
     private final boolean[] changedMemory = new boolean[MEMORY_LENGTH];
 
-    public int[] registers = new int[NUMBER_OF_REGISTERS]; //TODO: Make registers private again with proper testing
+    private final int[] registers = new int[NUMBER_OF_REGISTERS];
     public final boolean[] changedRegisters = new boolean[NUMBER_OF_REGISTERS];
 
     private final Map<Integer, Integer> lineNumberToAddress = new HashMap<>();
-    private final Map<Integer, Integer> AddressToLineNumber = new HashMap<>();
+    private final Map<Integer, Integer> addressToLineNumber = new HashMap<>();
     private int[] breakpointAddresses = new int[0];
 
     private boolean justBreaked;
     public boolean programHaltet;
     public boolean memoryHasChanged;
 
-    // This is only used for DEBUG purposes
-    private int pcIndexOfLastOperationExecuted;
+    private PrintStream out = System.out;
+    private Parser parser = new Parser(out);
 
     public VirtualMachine(int begin, byte[] memory) {
-        //TODO: Handle bad input
-
         for (int i = 0;  i < memory.length; i++) {
             int address = begin + i;
             this.memory[address] = memory[i];
@@ -85,14 +84,18 @@ public class VirtualMachine {
         this(0, new byte[]{});
     }
 
+    public VirtualMachine(PrintStream out) {
+        this(0, new byte[]{});
+        this.out = out;
+    }
+
     public VirtualMachine(byte[] memory, int[] registers) {
         this(memory);
         System.arraycopy(registers, 0, this.registers, 0, registers.length);
     }
 
     public VirtualMachine(String program) {
-        Parser parser = new Parser(program);
-        parser.parse();
+        parser.parse(program);
         byte[] machineCode = parser.generateMachineCode();
         setLineNumberToAddress(parser.getCommands());
         setMemory(machineCode);
@@ -123,8 +126,7 @@ public class VirtualMachine {
     }
 
     public void run(String input) {
-        Parser parser = new Parser(input);
-        parser.parse();
+        parser.parse(input);
         reset();
         setMemory(parser.generateMachineCode());
         setLineNumberToAddress(parser.getCommands());
@@ -166,7 +168,7 @@ public class VirtualMachine {
 
             //TODO: Check if no lineNumber gets set multiple times (normally this shouldn't happen)
             lineNumberToAddress.put(lineNumber, address);
-            AddressToLineNumber.put(address, lineNumber);
+            addressToLineNumber.put(address, lineNumber);
         }
     }
 
@@ -310,7 +312,7 @@ public class VirtualMachine {
         setRegister((reg + 1) % 16, WORD_SIZE, (int) value);
     }
 
-    private void setRegister(int reg, int size, int value) {
+    public void setRegister(int reg, int size, int value) {
         checkSize(size);
         int mask = getMask(size);
         int maskNegated = ~mask;
@@ -675,7 +677,6 @@ public class VirtualMachine {
     //endregion
 
     public void executeOneInstruction() {
-        int currentIndexOfPC = getPC();
         int opcode = getNextByte();
 
         OpCode op = OpCode.find(opcode);
@@ -796,7 +797,6 @@ public class VirtualMachine {
             case PUSHR -> pushr();
             case POPR -> popr();
         }
-        pcIndexOfLastOperationExecuted = currentIndexOfPC;
     }
 
     public void setBreakpoints(int[] breakpointLines) {
@@ -811,7 +811,7 @@ public class VirtualMachine {
 
     public int getLineNumberOfNextCommand() {
         //In case the Program gets modified mid run, this won't find anything.
-        Integer lineNumber = AddressToLineNumber.get(getPC());
+        Integer lineNumber = addressToLineNumber.get(getPC());
 
         if (lineNumber == null) return 1;
         else return lineNumber;

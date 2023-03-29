@@ -23,7 +23,7 @@ public class RegisterPanel extends JPanel implements ActionListener {
 
     private void updateRegister(int regNum) {
         RegisterViewType regView = (RegisterViewType) chooser.getSelectedItem();
-        int regValue = vm.registers[regNum];
+        int regValue = vm.getRegister(regNum, 4);
         boolean regChanged = vm.changedRegisters[regNum];
 
         String text = "";

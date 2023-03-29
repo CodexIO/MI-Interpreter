@@ -9,6 +9,8 @@ public class Token {
 
     public enum Type {
         I,
+        B,
+        H,
         REGISTER,
         COMMA,
         POINT,
@@ -31,8 +33,12 @@ public class Token {
 
     public Token(int r, int c, String l, Type t) {
         row = r;
-        col = c;
+        col = c - l.length();
         type = t;
         lexeme = l;
+    }
+
+    public int colEnd() {
+        return row + lexeme.length();
     }
 }

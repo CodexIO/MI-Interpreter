@@ -38,18 +38,14 @@ public class Lexer {
     }
 
     private char peek() {
+        if (index >= source.length()) return '\0';
+
         return source.charAt(index);
     }
 
     private char peekNext() {
+        if (index + 1 >= source.length()) return '\0';
         return source.charAt(index + 1);
-    }
-
-    private void eat(char expected) {
-        char c = nextChar();
-        if (c != expected) {
-            //TODO: ERROR
-        }
     }
 
     private void eatWhitespace() {
@@ -110,6 +106,7 @@ public class Lexer {
     }
 
     // Returns the next normal Token after all relevant Tokens for EQU are lexed
+    // @Note all these TODOS show that this function should probably be handled by the Parser
     private Token lexEquals() {
         eatWhitespace();
 
@@ -117,11 +114,11 @@ public class Lexer {
 
         Token name = lexKeywordOrIdentifier();
 
-        if (name.type != Type.IDENTIFIER) System.exit(-1);//TODO: ERROR
+        if (name.type != Type.IDENTIFIER) System.exit(-1);//to do: ERROR
 
         eatWhitespace();
 
-        //TODO: ERROR
+        //to do: ERROR
         if (nextChar() != '=') System.exit(-1);
 
         int lineNumber = row;
@@ -134,7 +131,7 @@ public class Lexer {
 
         }
 
-        //TODO: Check if equal label is already defined
+        //TO DO: Check if equal label is already defined
         equalsDefinitions.put(name.lexeme, replacementTokens);
 
         return tk;
@@ -167,6 +164,8 @@ public class Lexer {
         }
 
         if (tk.lexeme.equals("I")) tk.type = Type.I;
+        else if (tk.lexeme.equals("B")) tk.type = Type.B;
+        else if (tk.lexeme.equals("H")) tk.type = Type.H;
         else if (isRegister(tk.lexeme)) tk.type = Type.REGISTER;
         else if (tk.lexeme.equals("SEG")) tk.type = Type.SEG;
         else if (tk.lexeme.equals("END")) tk.type = Type.END;
@@ -184,10 +183,12 @@ public class Lexer {
     private Token lexEncapsulatedConstant() {
         start = index;
 
-        while (peek() != '\'') advance();
+        while (peek() != '\'' && peek() != '\0' && peek() != '\n') advance();
 
         Token tk = newToken(Type.CONSTANT);
-        eat('\'');
+
+        // Eat the second APOSTROPHE
+        advance();
 
         return tk;
     }

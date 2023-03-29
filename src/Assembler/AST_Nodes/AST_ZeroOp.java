@@ -18,6 +18,11 @@ public class AST_ZeroOp extends Command {
     }
 
     @Override
+    public int size() {
+        return 1;
+    }
+
+    @Override
     public List<Operand> getOperands() {
         return new ArrayList<>();
     }

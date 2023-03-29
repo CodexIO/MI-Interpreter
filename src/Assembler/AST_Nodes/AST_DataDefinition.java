@@ -42,6 +42,11 @@ public class AST_DataDefinition extends Command {
     }
 
     @Override
+    public int size() {
+        return bytes.size();
+    }
+
+    @Override
     public List<Operand> getOperands() {
         return new ArrayList<>();
     }

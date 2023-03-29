@@ -3,17 +3,21 @@ package Assembler;
 import Assembler.AST_Nodes.*;
 import Interpreter.VirtualMachine;
 
+import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 import static Assembler.OpCode.DataType.*;
 import static Assembler.Token.Type.*;
 
 public class Parser {
 
-    private final Lexer lx;
-    private final List<Token> tokens;
-    private int tokenPosition;
+    private List<Token> tokens;
+    private int tokenIndex;
+    private int currentAddress = 0;
 
     private final List<Command> commands = new ArrayList<>();
     private final List<RelativeAddress> labelsToPatch = new ArrayList<>();
@@ -22,15 +26,19 @@ public class Parser {
     private final List<AST_DataDefinition> dataDefinitionsToPatch = new ArrayList<>();
     private List<String> labelsToPatchInDD = new ArrayList<>();
 
-    private int currentAddress = 0;
+    private PrintStream out;
 
-    public Parser(Lexer lexer) {
-        lx = lexer;
-        tokens = lx.getTokens();
+    public Parser(PrintStream out) {
+        this.out = out;
     }
 
-    public Parser(String input) {
-        this(new Lexer(input));
+    private void reset() {
+        tokenIndex = 0;
+        commands.clear();
+        labelsToPatch.clear();
+        labelAddresses.clear();
+        dataDefinitionsToPatch.clear();
+        labelsToPatchInDD.clear();
     }
 
     public List<Command> getCommands() {
@@ -38,7 +46,7 @@ public class Parser {
     }
 
     private void advanceToken() {
-        tokenPosition += 1;
+        tokenIndex += 1;
     }
 
     private Token nextToken() {
@@ -47,13 +55,18 @@ public class Parser {
         return tk;
     }
 
+    private Token prevToken() {
+        assert(tokenIndex >= 0);
+        return tokens.get(tokenIndex - 1);
+    }
+
     private Token peekToken() {
-        if (tokenPosition >= tokens.size()) return new Token(-1, -1, "", UNKNOWN);
-        return tokens.get(tokenPosition);
+        if (tokenIndex >= tokens.size()) return new Token(-1, -1, "", UNKNOWN);
+        return tokens.get(tokenIndex);
     }
 
     private Token peekPeekToken() {
-        int pos = tokenPosition + 1;
+        int pos = tokenIndex + 1;
         if (pos >= tokens.size()) return new Token(-1, -1, "", UNKNOWN);
         return tokens.get(pos);
     }
@@ -61,9 +74,14 @@ public class Parser {
     private void eat(Token.Type type) {
         Token tk = nextToken();
         if (tk.type != type) {
-            String rowAndCol = "[" + tk.row + ", " + tk.col + "]";
-            System.err.println(rowAndCol + "ERROR: Unexpected TokenType, expected: " + type.name() + " but got: " + tk.type + " with lexeme: " + tk.lexeme);
+            error(tk, "Unexpected Token, expected: % but got: % with lexeme: %", type.name(), tk.type.name(), tk.lexeme);
         }
+    }
+
+    private Token expect(Token.Type expected, String message) {
+        Token tk = nextToken();
+        if (tk.type != expected) errorUnexpectedToken(tk, message, expected);
+        return tk;
     }
 
     private boolean match(Token.Type type) {
@@ -76,25 +94,27 @@ public class Parser {
     }
 
     public byte[] generateMachineCode() {
-        ArrayList<Byte> code = new ArrayList<>();
+        int size = 0;
+        for (Command cmd : commands) size += cmd.size();
+
+        byte[] machineCode = new byte[size];
+        int i = 0;
+
         for(Command cmd : commands) {
-            //TODO: Do i want to use ArrayList instead of byte[] everywhere?
-            //TODO: Probably not, i think i can figure out the size beforehand and just use byte[]
             byte[] bytes = cmd.generateMachineCode();
             for(byte b : bytes) {
-                code.add(b);
+                machineCode[i++] = b;
             }
         }
 
-        byte[] bytes = new byte[code.size()];
-        int i = 0;
-        for (Byte b : code) {
-            bytes[i++] = b;
-        }
-        return bytes;
+        return machineCode;
     }
 
-    public void parse() {
+    public void parse(String input) {
+        reset();
+        Lexer lx = new Lexer(input);
+        tokens = lx.getTokens();
+
         Token tk = nextToken();
 
         while (tk.type != UNKNOWN) {
@@ -112,7 +132,6 @@ public class Parser {
     }
 
     private void parseSeg() {
-        // TODO: Maybe implement this?
         // It's not really needed since SEG doesn't do anything important
     }
 
@@ -122,32 +141,42 @@ public class Parser {
 
     private void parseLabel(Token name) {
         eat(COLON);
-        //TODO: Check if a label was already defined.
-        labelAddresses.put(name.lexeme, currentAddress);
+
+        boolean labelExists = labelAddresses.containsKey(name.lexeme);
+        if (labelExists) error(name, "Label % has already been defined.", name.lexeme);
+        else labelAddresses.put(name.lexeme, currentAddress);
     }
 
     private void parseKeyword(Token command) {
 
-        //TODO @Speed This String comparisons are probably slow.
+        //@Speed These String comparisons are probably slow.
         Command cmd = switch (command.lexeme) {
-            case "HALT" -> parseZeroOpCommand(command);
+            case "HALT", "RET", "PUSHR", "POPR" -> parseZeroOpCommand(command);
+
             case "DD" -> parseDataDefinition(command);
+
             case "RES" -> parseReserve(command);
+
             case "CMP", "MOVE", "MOVEN", "MOVEC" -> parseTwoOpCommand(command);
+
             case "MOVEA" -> parseMOVEAorCONV(command, true);
+
             case "CONV" -> parseMOVEAorCONV(command, false);
+
             case "OR", "ANDNOT", "XOR", "ADD", "SUB", "MULT", "DIV"->
                     parseTwoOrThreeOpCommand(command);
+
             case "SH", "ROT" -> parseThreeOpCommand(command);
+
             case "CLEAR" -> parseCLEAR(command);
-            case "JEQ", "JNE", "JGT",
-                    "JGE", "JLT", "JLE",
-                    "JC", "JNC", "JV", "JNV" -> parseSingleOpCommand(command);
-            case "JUMP", "CALL" -> parseSingleOpCommand(command);
-            case "RET", "PUSHR", "POPR" -> parseZeroOpCommand(command);
+
+            case "JEQ", "JNE", "JGT", "JGE", "JLT", "JLE",
+                    "JC", "JNC", "JV", "JNV", "JUMP", "CALL" ->
+                    parseSingleOpCommand(command);
             default -> null;
         };
 
+        if (cmd == null) error(command, "Unknown Command: %", command.lexeme);
         commands.add(cmd);
     }
 
@@ -206,21 +235,12 @@ public class Parser {
         }
 
         if (fixedOperandCount) {
-            if (twoOperandsNeeded) {
-                if (a3 != null) {
-                    //TODO: ERROR
-                }
-            } else {
-                if (a3 == null) {
-                    //TODO: ERROR
-                }
-            }
+            if (twoOperandsNeeded && a3 != null) error(a3, "Expected two arguments for % but got three", command.lexeme);
+            if (!twoOperandsNeeded && a3 == null) error(a2, "Expected three arguments for % but only got two", command.lexeme);
         }
 
         OpCode op = OpCode.getOpCode(command.lexeme, size, operands);
 
-        //TODO: Think of a convenient way to keep track of current line and row
-        //TODO:                                      |
         return new AST_Add(op, command.row, address, command.col, -1, a1, a2, a3);
     }
 
@@ -238,9 +258,8 @@ public class Parser {
         OpCode op = OpCode.getOpCode(command.lexeme, WORD, operands);
 
 
-        //TODO: Think of a convenient way to keep track of current line and row
-        //TODO:                                      |
-        return new AST_Add(op, command.row, address, command.col, -1, a1, a2, null);
+
+        return new AST_Add(op, command.row, address, command.col, command.colEnd(), a1, a2, null);
     }
 
     // @Clean This is almost the same as parseSingleOp
@@ -284,15 +303,7 @@ public class Parser {
     private Operand parseOperand(OpCode.DataType size) {
         Token tk = nextToken();
 
-        return switch(tk.type) {
-            case IDENTIFIER -> parseAbsoluteAddress(tk);
-            case I -> parseImmediateOperand(size);
-            case REGISTER -> parseRegisterAddress(tk);
-            case PLUS, CONSTANT -> parseAbsoluteAddressOrRelativeAddress(tk);
-            case MINUS -> parseAbsOrRelOrStack(tk);
-            case BANG -> parseOtherTypes(tk);
-            default -> null; //TODO Error
-
+        Operand op = switch(tk.type) {
             /*
             FIRST Mengen:
                 <absolute>  = +, -, CONSTANT, ident
@@ -304,7 +315,17 @@ public class Parser {
                 <indz indr> = <indirekt> /Rx/
                 <keller>    = -!Rx, !Rx+
              */
+            case IDENTIFIER -> parseAbsoluteAddress(tk);
+            case I -> parseImmediateOperand(size);
+            case REGISTER -> parseRegisterAddress(tk);
+            case PLUS, CONSTANT -> parseAbsoluteAddressOrRelativeAddress(tk);
+            case MINUS -> parseAbsOrRelOrStack(tk);
+            case BANG -> parseOtherTypes(tk);
+            default -> null; //TODO Error
         };
+
+        if (op == null) errorUnexpectedToken(tk, "trying to parse an Operand", IDENTIFIER, I, REGISTER, PLUS, MINUS, CONSTANT, BANG);
+        return op;
     }
 
     private Command parseReserve(Token command) {
@@ -378,28 +399,26 @@ public class Parser {
                 eat(APOSTROPHE);
                 return bytes;
             }
-            case IDENTIFIER -> {
-                if (tk.lexeme.equals("B") || tk.lexeme.equals("H")) {
-                    eat(APOSTROPHE);
-                    Token num = nextToken();
-                    int number = switch (tk.lexeme) {
-                        case "B" -> Integer.parseInt(num.lexeme, 2);
-                        case "H" -> Integer.parseInt(num.lexeme, 16);
-                        default -> 0xCCCC_CCCC; //TODO: ERROR
-                    };
-                    eat(APOSTROPHE);
-                    return getBytesFromNumber(number, size);
-                } else {
-                    String labelName = tk.lexeme;
-
-                    labelsToPatchInDD.add(labelName);
-                    for (int i = 0; i < 4; i++) bytes.add((byte) 0xDD);
-                    return bytes;
-                }
+            case B -> {
+                Token num = nextToken();
+                long number = Integer.parseInt(num.lexeme, 2);
+                return getBytesFromNumber(number, size);
             }
+            case H -> {
+                Token num = nextToken();
+                long number = Integer.parseInt(num.lexeme, 16);
+                return getBytesFromNumber(number, size);
+            }
+            case IDENTIFIER -> {
+                String labelName = tk.lexeme;
+
+                labelsToPatchInDD.add(labelName);
+                for (int i = 0; i < 4; i++) bytes.add((byte) 0xDD);
+                return bytes;
+            }
+            default -> errorUnexpectedToken(tk, "parsing Data Definition", CONSTANT, MINUS, OPEN_PAREN, B, H, IDENTIFIER);
         }
 
-        //TODO: ERROR
         return bytes;
     }
 
@@ -424,13 +443,11 @@ public class Parser {
                 bytes.add((byte) number);
                 break;
             case FLOAT:
-                float floatNumber = (float) number;
-                int bits = Float.floatToIntBits(floatNumber);
+                int bits = Float.floatToIntBits(number);
                 bytes = getBytesFromNumber(bits, WORD);
                 break;
             case DOUBLE:
-                double doubleNumber = (double) number;
-                long longBits = Double.doubleToLongBits(doubleNumber);
+                long longBits = Double.doubleToLongBits(number);
                 bytes.addAll(getBytesFromNumber(longBits >> 32, WORD));
                 bytes.addAll(getBytesFromNumber((int) longBits, WORD));
                 break;
@@ -440,15 +457,13 @@ public class Parser {
     }
 
     private Operand parseAbsoluteAddressOrRelativeAddress(Token tk) {
-        switch (tk.type) {
-            case PLUS, MINUS -> {
-                if (peekToken().type == CONSTANT && peekPeekToken().type == PLUS)
-                    return parseIndexedOrRelativeAddress(tk);
-            }
-            case CONSTANT -> {
-                if (peekToken().type == PLUS) return parseIndexedOrRelativeAddress(tk);
-            }
+        if (tk.type == PLUS || tk.type == MINUS) {
+            if (peekToken().type == CONSTANT && peekPeekToken().type == PLUS)
+                return parseIndexedOrRelativeAddress(tk);
         }
+        else if (tk.type == CONSTANT && peekToken().type == PLUS)
+            return parseIndexedOrRelativeAddress(tk);
+
         return parseAbsoluteAddress(tk);
     }
 
@@ -465,16 +480,15 @@ public class Parser {
                 return parseLabelAddress(tk);
             }
             case MINUS -> sign = -1;  // I don't know why you would support this for an Address, but it's written in the Grammar so...
-            case PLUS -> sign = 1;
+            case PLUS -> {}
             case CONSTANT -> {
                 int address = Integer.parseInt(tk.lexeme);
                 return new AbsoluteAddress(address);
             }
         }
-        Token constant = nextToken();
-        if (constant.type != CONSTANT) return null; //ERROR
+        Token constant = expect(CONSTANT, "parsing Absolute Address");
 
-        int address = sign * Integer.parseInt(tk.lexeme);
+        int address = sign * Integer.parseInt(constant.lexeme);
         return new AbsoluteAddress(address);
     }
 
@@ -495,7 +509,10 @@ public class Parser {
             plus = false;
             eat(BANG);
         }
-        else assert(tk.type == BANG);
+        else if(tk.type != BANG) {
+            errorUnexpectedToken(tk, "while parsing Stack Addressing", MINUS, BANG);
+            return null;
+        }
 
         Token regTk = nextToken();
         RegisterAddress reg = parseRegisterAddress(regTk);
@@ -507,7 +524,7 @@ public class Parser {
     private Operand parseRelativeOrIndirectAddress(Token tk) {
         Token.Type nextType = peekToken().type;
 
-        if (nextType == REGISTER)  return parseIndexedOrRelativeAddress(tk);
+        if (nextType == REGISTER) return parseIndexedOrRelativeAddress(tk);
 
         return parseIndexedOrIndirectAddress(tk);
     }
@@ -529,20 +546,17 @@ public class Parser {
         int offset = Integer.MIN_VALUE;
 
         //TODO: Refactor this into it's own function
+        // or maybe add PLUS and MINUS to the Constant that comes after them in the Lexer
         switch (tk.type) {
             case PLUS -> {
-                Token number = nextToken();
-                // TODO CHECK IF CONSTANT WITH SOMETHING like Token expect(Token.Type type) returning the nextToken if it matches and if not errors
+                Token number = expect(CONSTANT, "parsing Constant for Relative Address");
                 offset = Integer.parseInt(number.lexeme);
             }
             case MINUS -> {
-                Token number = nextToken();
-                // TODO CHECK IF CONSTANT WITH SOMETHING like Token expect(Token.Type type) returning the nextToken if it matches and if not errors
+                Token number = expect(CONSTANT, "parsing Constant for Relative Address");
                 offset = - Integer.parseInt(number.lexeme);
             }
-            case CONSTANT -> {
-                offset = Integer.parseInt(tk.lexeme);
-            }
+            case CONSTANT -> offset = Integer.parseInt(tk.lexeme);
         }
         if (offset != Integer.MIN_VALUE) {
             eat(PLUS);
@@ -571,12 +585,12 @@ public class Parser {
             relAddress = parseRelativeAddress(nextToken());
             eat(CLOSE_PAREN);
         }
+        else if (match(BANG)) {
+            relAddress = parseRelativeAddress(prevToken());
+        }
         else {
-            if (peekToken().type != BANG) {
-                String info = "[" + peekToken().row + ", " + peekToken().col + "] ";
-                System.err.println(info + "Expected ! or ( after !");
-            }
-            relAddress = parseRelativeAddress(nextToken());
+            errorUnexpectedToken(peekToken(), "parsing IndirectAddress", OPEN_PAREN, BANG);
+            return null;
         }
 
         // Relative and Indirect use the same information for generating
@@ -631,7 +645,6 @@ public class Parser {
             return parseFloat(size);
         }
 
-        //TODO: Maybe put parseFloat and parseInteger together
         return parseInteger(size);
     }
 
@@ -668,31 +681,28 @@ public class Parser {
 
                         int sign = 1;
                         if (match(MINUS)) sign = -1;
-                        else if (match(PLUS)) sign = 1;
-                        Token numTk = nextToken();
-                        if (numTk.type != CONSTANT) System.out.println("ERROR Wrong E");
-                        double exp = sign * Integer.parseInt(numTk.lexeme);
+                        else match(PLUS);
 
+                        Token numTk = expect(CONSTANT, "parsing a float, you need to specify a number after using e/E");
+
+                        int exp = sign * Integer.parseInt(numTk.lexeme);
                         number = base * Math.pow(10, exp);
                         break;
                     }
                 }
                 number = Double.parseDouble(floatToParse);
             }
-            case IDENTIFIER -> {
-                eat(APOSTROPHE);
+            case B -> {
                 Token num = nextToken();
-                long floatSavedInLong = switch (tk.lexeme) {
-                    case "B" -> Long.parseLong(num.lexeme, 2);
-                    case "H" -> Long.parseLong(num.lexeme, 16);
-                    default -> 0xCCCC_CCCC; //TODO: ERROR
-                };
-                eat(APOSTROPHE);
+                long floatSavedInLong = Long.parseLong(num.lexeme, 2);
                 return new ImmediateOperand(floatSavedInLong, size);
             }
-            default -> {
-                //TODO: ERROR
+            case H -> {
+                Token num = nextToken();
+                long floatSavedInLong = Long.parseLong(num.lexeme, 16);
+                return new ImmediateOperand(floatSavedInLong, size);
             }
+            default -> errorUnexpectedToken(tk, "parsing Float", MINUS, CONSTANT, B, H);
         }
 
         if (size == FLOAT) return new ImmediateOperand((float) number);
@@ -709,17 +719,17 @@ public class Parser {
                 number = - Long.parseLong(tk.lexeme);
             }
             case CONSTANT -> number = Integer.parseInt(tk.lexeme);
-            case IDENTIFIER -> {
+            case B -> {
                 Token num = nextToken();
-                number = switch (tk.lexeme) {
-                    case "B" -> Long.parseLong(num.lexeme, 2);
-                    case "H" -> Long.parseLong(num.lexeme, 16);
-                    default -> 0xCCCC_CCCC; //TODO: ERROR
-                };
+                number = Long.parseLong(num.lexeme, 2);
+            }
+            case H -> {
+                Token num = nextToken();
+                number = Long.parseLong(num.lexeme, 16);
             }
             default -> {
                 number = 0xCCCC_CCCC;
-                //TODO: ERROR
+                errorUnexpectedToken(tk, "parsing Integer", MINUS, CONSTANT, B, H);
             }
         }
         return new ImmediateOperand(number, size);
@@ -729,29 +739,28 @@ public class Parser {
         for (RelativeAddress adr : labelsToPatch) {
             Integer address = labelAddresses.get(adr.labelName);
 
-            //TODO: ERROR Unknown label;
-            if (address == null) System.out.println("Unknown Label " + adr.labelName);
-            else {
-                int oldSize = adr.size();
+            if (address == null) {
+                error(adr, "Undefined Label: % ", adr.labelName);
+                continue;
+            }
 
-                adr.patchLabel(address);
+            int oldSize = adr.size();
+            adr.patchLabel(address);
+            int newSize = adr.size();
 
-                int newSize = adr.size();
-                int offset = newSize - oldSize;
-                if (offset != 0) {
-                    patchLabelAddresses(adr.address, offset);
-                    patchRelativeAddresses(adr.address, offset);
-                }
+            int offset = newSize - oldSize;
+            if (offset != 0) {
+                patchLabelAddresses(adr.address, offset);
+                patchRelativeAddresses(adr.address, offset);
             }
         }
+
         for (AST_DataDefinition dataDefinition : dataDefinitionsToPatch) {
             for (String labelName : dataDefinition.labelsToPatch) {
                 Integer address = labelAddresses.get(labelName);
-                //TODO: ERROR Unknown label;
-                if (address == null) System.out.println("Unknown Label " + labelName);
-                else {
-                    dataDefinition.patchAddress(address);
-                }
+
+                if (address == null) error(dataDefinition, "Undefined Label: % ", labelName);
+                else dataDefinition.patchAddress(address);
             }
         }
     }
@@ -773,7 +782,7 @@ public class Parser {
             for (Operand op : command.getOperands()) {
                 if (op instanceof RelativeAddress rel) {
                     // TODO: What about Relative Addresses that are explicitly encoded as 5 + R15,
-                    // instead of using labels. Do we need to patch those too?
+                    // instead of using labels. Do we need to patch those too? Or not?
                     if (rel.regX != 15) continue;
 
                     if (rel.address > startingAddress) {
@@ -789,4 +798,52 @@ public class Parser {
             }
         }
     }
+
+    private void error(int row, int col, String message) {
+        String prefix = "ERROR while Parsing:\n";
+        String info = "[" + row + ", " + col + "] ";
+        out.println(prefix + info + message);
+    }
+
+    private void error(int row, int col, String format, String... args) {
+        assert(format.chars().filter(ch -> ch == '%').count() == args.length);
+
+        StringBuilder sb = new StringBuilder();
+
+        int argsIndex = 0;
+        for (int i = 0; i < format.length(); i++) {
+            char c = format.charAt(i);
+
+            if (c == '%') sb.append(args[argsIndex++]);
+            else sb.append(c);
+        }
+
+        error(row, col, sb.toString());
+    }
+
+    private void error(Token tk, String format, String... args) {
+        error(tk.row, tk.col, format,args);
+    }
+
+    private void error(Command cmd, String format, String... args) {
+        error(cmd.row, cmd.beg, format, args);
+    }
+
+    private void error(Operand op, String format, String... args) {
+        error(-1, -1, format, args);
+    }
+
+    private void errorUnexpectedToken(Token got, String infix, Token.Type... expected) {
+        StringBuilder format = new StringBuilder("Unexpected Token while " + infix + "\nGot: " + got.type + " with lexeme: " + got.lexeme + "\nExpected: (");
+        for (int i = 0; i < expected.length; i++) {
+            if (i != 0) format.append(", ");
+
+            Token.Type type = expected[i];
+            format.append(type);
+        }
+        format.append(")");
+
+        error(got.row, got.col, format.toString());
+    }
+
 }

@@ -5,7 +5,6 @@ import Interpreter.VirtualMachine;
 import Assembler.Parser;
 import org.fife.ui.rsyntaxtextarea.AbstractTokenMakerFactory;
 import org.fife.ui.rsyntaxtextarea.RSyntaxTextArea;
-import org.fife.ui.rsyntaxtextarea.SyntaxConstants;
 import org.fife.ui.rsyntaxtextarea.TokenMakerFactory;
 import org.fife.ui.rtextarea.Gutter;
 import org.fife.ui.rtextarea.GutterIconInfo;
@@ -24,7 +23,10 @@ class Window extends JFrame implements ActionListener {
     private static final int WINDOW_WIDTH = 900;
     private static final int WINDOW_HEIGHT = 800;
 
-    VirtualMachine vm = new VirtualMachine();
+    private final JTextArea notificationArea = new JTextArea();
+    private final MessageCatcher messageCatcher = new MessageCatcher(notificationArea);
+
+    private final VirtualMachine vm = new VirtualMachine(new PrintStream(messageCatcher));
 
     private final ButtonPanel buttonPanel = new ButtonPanel(this);
     private final RegisterPanel registerPanel = new RegisterPanel(vm);
@@ -39,9 +41,9 @@ class Window extends JFrame implements ActionListener {
 
     private final RSyntaxTextArea textEditor = new RSyntaxTextArea();
     private final RTextScrollPane scroll = new RTextScrollPane(textEditor);
-    private final JTextPane notificationPane = new JTextPane();
 
     private final JPanel mainPanel = new JPanel();
+
 
     // Constructor
     Window()
@@ -122,7 +124,7 @@ class Window extends JFrame implements ActionListener {
         centerRightPanel.add(memoryPanel);
         centerRightPanel.add(flagPanel);
 
-        lowerPanel.add(notificationPane);
+        lowerPanel.add(notificationArea);
         lowerPanel.setBorder(new LineBorder(Color.black));
 
         add(mainPanel);
@@ -132,7 +134,7 @@ class Window extends JFrame implements ActionListener {
         centerRightPanel.setMaximumSize(new Dimension(300, 700));
         lowerPanel.setPreferredSize(new Dimension(850, 150));
 
-        notificationPane.setPreferredSize(new Dimension(850, 150));
+        notificationArea.setPreferredSize(new Dimension(850, 150));
 
         AbstractTokenMakerFactory atmf = (AbstractTokenMakerFactory) TokenMakerFactory.getDefaultInstance();
         atmf.putMapping("text/mi", "Assembler.MiTokenMaker");
@@ -155,13 +157,14 @@ class Window extends JFrame implements ActionListener {
         Object src = e.getSource();
 
         if (src == buttonPanel.assemble) {
-            Parser parser = new Parser(textEditor.getText());
-            parser.parse();
+            Parser parser = new Parser(new PrintStream(messageCatcher));
+            parser.parse(textEditor.getText());
+
             vm.reset();
             vm.setMemory(parser.generateMachineCode());
             vm.setLineNumberToAddress(parser.getCommands());
 
-            updateVmState("Program assembled successfully");
+            updateVmState("");
             buttonPanel.run.setEnabled(true);
             buttonPanel.debug.setEnabled(true);
             buttonPanel.step.setEnabled(true);
@@ -229,7 +232,7 @@ class Window extends JFrame implements ActionListener {
     private void updateVmState(String message) {
         registerPanel.updateRegisterValues();
         flagPanel.updateFlags();
-        notificationPane.setText(message);
+        notificationArea.setText(message);
         if (vm.memoryHasChanged) {
             memoryPanel.renderMemory();
             vm.memoryHasChanged = false;

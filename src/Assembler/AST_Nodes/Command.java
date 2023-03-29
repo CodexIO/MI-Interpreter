@@ -9,7 +9,7 @@ public abstract class Command {
     /**
      * Zeile des Quelltextes in der der Befehl steht
      */
-    protected int row;
+    public int row;
 
     /**
      * Adresse des Befehls im Speicher
@@ -19,7 +19,7 @@ public abstract class Command {
     /**
      * Zeichenpostition - Beginn des Befehlswortes im Quelltext
      */
-    protected int beg;
+    public int beg;
 
     /**
      * Zeichenpostition - Ende des Befehlswortes im Quelltext
@@ -62,6 +62,8 @@ public abstract class Command {
     }
 
     public abstract byte[] generateMachineCode();
+
+    public abstract int size();
 
     public abstract List<Operand> getOperands();
 }

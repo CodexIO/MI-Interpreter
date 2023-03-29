@@ -30,7 +30,7 @@ public class AST_Add extends Command {
 
     @Override
     public byte[] generateMachineCode() {
-        int size = 1 + a1.size() + a2.size() + (three ? a3.size() : 0);
+        int size = size();
         byte[] result = new byte[size];
 
         int i = 0;
@@ -40,6 +40,11 @@ public class AST_Add extends Command {
         if (three) for(byte b : a3.generateMachineCode()) result[i++] = b;
 
         return result;
+    }
+
+    @Override
+    public int size() {
+        return 1 + a1.size() + a2.size() + (three ? a3.size() : 0);
     }
 
     @Override
