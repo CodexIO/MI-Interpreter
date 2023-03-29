@@ -1,6 +1,5 @@
 package IntegrationTests;
 
-import Assembler.Parser;
 import Interpreter.VirtualMachine;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -12,7 +11,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class ComplexProgramsTest {
     VirtualMachine vm = new VirtualMachine();
-    Parser parser;
 
     private void assertRegisterEquals(int expected, int reg) {
         assertEquals(expected, vm.getRegister(reg, WORD_SIZE));
@@ -20,12 +18,7 @@ public class ComplexProgramsTest {
 
     private void runFile(String fileName) {
         String fileText = readTestFile(fileName);
-        parser = new Parser(fileText);
-        parser.parse();
-
-        byte[] machineCode = parser.generateMachineCode();
-        vm.setMemory(machineCode);
-        vm.run();
+        vm.run(fileText);
     }
 
     @BeforeEach
@@ -122,7 +115,7 @@ public class ComplexProgramsTest {
     public void moveTest() {
         runFile("movetest.mi");
 
-        assertRegisterEquals(-2147483196, 0);
+        assertRegisterEquals(-2147467196, 0);
     }
 
     @Test

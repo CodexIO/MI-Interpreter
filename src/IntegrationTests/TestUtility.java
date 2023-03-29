@@ -10,7 +10,7 @@ import static Interpreter.VirtualMachine.WORD_SIZE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class TestUtility {
-    VirtualMachine vm = new VirtualMachine();
+    protected VirtualMachine vm = new VirtualMachine();
 
     static final String PATH = "src/IntegrationTests/programs/";
 
